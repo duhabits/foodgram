@@ -18,17 +18,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - foodgram-network
 
   backend:
     container_name: foodgram-backend
-    build:
-      context: ../backend/foodgram
-      dockerfile: Dockerfile
+    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
     restart: always
     volumes:
       - static_volume:/app/static/
       - media_volume:/app/media/
-      - ../data:/app/data 
+      - ../data:/app/data
     env_file:
       - ./.env
     depends_on:
@@ -36,22 +36,25 @@ services:
         condition: service_healthy
     command: >
       sh -c "python manage.py migrate &&
-            python manage.py load_tags &&  # <-- ДОБАВЬ ЭТУ СТРОКУ
-            python manage.py load_ingredients --file=data/ingredients.csv &&
-            python manage.py collectstatic --noinput &&
-            gunicorn --bind 0.0.0.0:8000 foodgram.wsgi:application"
+             python manage.py load_tags &&
+             python manage.py load_ingredients --file=data/ingredients.csv &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 foodgram.wsgi:application"
+    networks:
+      - foodgram-network
+
   frontend:
     container_name: foodgram-frontend
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_frontend:latest
     volumes:
       - frontend_static:/build
     command: ["sh", "-c", "echo 'Frontend built successfully' && tail -f /dev/null"]
+    networks:
+      - foodgram-network
 
   nginx:
     container_name: foodgram-nginx
-    image: nginx:1.25.4-alpine
+    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_nginx:latest
     restart: always
     ports:
       - "80:80"
@@ -63,9 +66,15 @@ services:
       - ../docs/:/usr/share/nginx/html/api/docs/
     depends_on:
       - backend
+    networks:
+      - foodgram-network
 
 volumes:
   postgres_data:
   static_volume:
   media_volume:
   frontend_static:
+
+networks:
+  foodgram-network:
+    driver: bridge

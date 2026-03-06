@@ -1,14 +1,18 @@
+import io
+import csv
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from django.shortcuts import get_object_or_404
+from django.http import FileResponse, HttpResponseRedirect, HttpResponseNotFound
+from django.db.models import Sum
+from django.urls import reverse
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from django.shortcuts import get_object_or_404
-from django.http import FileResponse
-from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-import io
-import csv
+
 from .models import (
     Recipe,
     Tag,
@@ -16,6 +20,7 @@ from .models import (
     Favorite,
     ShoppingCart,
     RecipeIngredient,
+    ShortLink,
 )
 from .serializers import (
     RecipeListSerializer,
@@ -87,22 +92,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Фильтрация рецептов"""
         queryset = super().get_queryset()
 
-        # Фильтрация по тегам
         tags = self.request.query_params.getlist('tags')
         if tags:
             queryset = queryset.filter(tags__slug__in=tags).distinct()
 
-        # Фильтрация по автору
         author = self.request.query_params.get('author')
         if author:
             queryset = queryset.filter(author_id=author)
 
-        # Фильтрация по избранному
         is_favorited = self.request.query_params.get('is_favorited')
         if is_favorited == '1' and self.request.user.is_authenticated:
             queryset = queryset.filter(favorites__user=self.request.user)
 
-        # Фильтрация по списку покупок
         is_in_cart = self.request.query_params.get('is_in_shopping_cart')
         if is_in_cart == '1' and self.request.user.is_authenticated:
             queryset = queryset.filter(shopping_cart__user=self.request.user)
@@ -181,50 +182,133 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_short_link(self, request, pk=None):
         """Получение короткой ссылки на рецепт"""
         recipe = self.get_object()
-        # Простая реализация короткой ссылки
-        short_link = f"{request.build_absolute_uri('/')}s/{recipe.id}"
-        return Response({'short-link': short_link})
 
-
-@action(
-    detail=False,
-    methods=['get'],
-    permission_classes=[permissions.IsAuthenticated],
-)
-def download_shopping_cart(request):
-    """Скачивание списка покупок"""
-    user = request.user
-
-    # Получаем все рецепты из корзины пользователя
-    cart_recipes = Recipe.objects.filter(shopping_cart__user=user)
-
-    # Собираем все ингредиенты
-    ingredients = (
-        RecipeIngredient.objects.filter(recipe__in=cart_recipes)
-        .values('ingredient__name', 'ingredient__measurement_unit')
-        .annotate(total_amount=Sum('amount'))
-        .order_by('ingredient__name')
-    )
-
-    # Создаем файл
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(['Список покупок'])
-    writer.writerow([])
-
-    for ingredient in ingredients:
-        writer.writerow(
-            [
-                ingredient['ingredient__name'],
-                f"{ingredient['total_amount']} {ingredient['ingredient__measurement_unit']}",
-            ]
+        short_link, created = ShortLink.objects.get_or_create(
+            recipe=recipe,
+            defaults={'code': ShortLink.generate_unique_code()}
         )
 
-    buffer.seek(0)
+        short_url = request.build_absolute_uri(
+            reverse('short-link-redirect', args=[short_link.code])
+        )
 
-    return FileResponse(
-        buffer,
-        as_attachment=True,
-        filename='shopping_list.txt',
-        content_type='text/plain',
+        return Response({'short-link': short_url})
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[permissions.IsAuthenticated],
+        url_path='download_shopping_cart'
     )
+    def download_shopping_cart(self, request):
+        """Скачивание списка покупок в разных форматах"""
+        user = request.user
+        format_type = request.query_params.get('format', 'txt').lower()
+
+        cart_recipes = Recipe.objects.filter(shopping_cart__user=user)
+        
+        if not cart_recipes.exists():
+            return Response(
+                {'errors': 'Список покупок пуст'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ingredients = (
+            RecipeIngredient.objects.filter(recipe__in=cart_recipes)
+            .values('ingredient__name', 'ingredient__measurement_unit')
+            .annotate(total_amount=Sum('amount'))
+            .order_by('ingredient__name')
+        )
+
+        if format_type == 'pdf':
+            return self._generate_pdf_response(ingredients)
+        elif format_type == 'csv':
+            return self._generate_csv_response(ingredients)
+        else:
+            return self._generate_txt_response(ingredients)
+
+    def _generate_txt_response(self, ingredients):
+        """Генерация TXT файла"""
+        buffer = io.StringIO()
+        buffer.write('СПИСОК ПОКУПОК\n')
+        buffer.write('=' * 50 + '\n\n')
+
+        for item in ingredients:
+            line = f"□ {item['ingredient__name']} - {item['total_amount']} {item['ingredient__measurement_unit']}\n"
+            buffer.write(line)
+
+        buffer.seek(0)
+
+        return FileResponse(
+            buffer,
+            as_attachment=True,
+            filename='shopping_list.txt',
+            content_type='text/plain; charset=utf-8'
+        )
+
+    def _generate_csv_response(self, ingredients):
+        """Генерация CSV файла"""
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+
+        writer.writerow(['Ингредиент', 'Количество', 'Единица измерения'])
+
+        for item in ingredients:
+            writer.writerow([
+                item['ingredient__name'],
+                item['total_amount'],
+                item['ingredient__measurement_unit']
+            ])
+
+        buffer.seek(0)
+
+        return FileResponse(
+            buffer,
+            as_attachment=True,
+            filename='shopping_list.csv',
+            content_type='text/csv; charset=utf-8'
+        )
+
+    def _generate_pdf_response(self, ingredients):
+        """Генерация PDF файла"""
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(30 * mm, height - 20 * mm, "СПИСОК ПОКУПОК")
+
+        p.line(30 * mm, height - 25 * mm, width - 30 * mm, height - 25 * mm)
+
+        y = height - 35 * mm
+        p.setFont("Helvetica", 12)
+
+        for item in ingredients:
+            if y < 30 * mm:
+                p.showPage()
+                p.setFont("Helvetica", 12)
+                y = height - 20 * mm
+
+            line = f"• {item['ingredient__name']} - {item['total_amount']} {item['ingredient__measurement_unit']}"
+            p.drawString(30 * mm, y, line)
+            y -= 8 * mm
+
+        p.save()
+        buffer.seek(0)
+
+        return FileResponse(
+            buffer,
+            as_attachment=True,
+            filename='shopping_list.pdf',
+            content_type='application/pdf'
+        )
+
+
+def redirect_short_link(request, code):
+    """Редирект с короткой ссылки на полный рецепт"""
+    try:
+        short_link = ShortLink.objects.select_related('recipe').get(code=code)
+        recipe_url = reverse('recipes-detail', args=[short_link.recipe.id])
+        return HttpResponseRedirect(recipe_url)
+    except ShortLink.DoesNotExist:
+        return HttpResponseNotFound('Ссылка не найдена')

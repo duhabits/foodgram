@@ -1,23 +1,24 @@
-FROM node:21.7.1-alpine
-
-# Добавьте DNS настройки
-RUN echo 'nameserver 8.8.8.8' > /etc/resolv.conf && \
-    echo 'nameserver 8.8.4.4' >> /etc/resolv.conf
+# Этап сборки
+FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Копируем файлы зависимостей
 COPY package*.json ./
 
-# Увеличьте таймаут и используйте зеркало
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm install --legacy-peer-deps --verbose
+# Устанавливаем зависимости с флагом legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
-COPY . ./
+# Копируем исходный код
+COPY . .
 
+# Собираем проект
 RUN npm run build
 
-EXPOSE 3000
+# Финальный этап - используем alpine, но только для копирования
+FROM alpine:latest as static
 
-CMD ["npm", "start"]
+# Копируем собранные файлы из этапа сборки
+COPY --from=build /app/build /build
+
+# Не нужно запускать никакой процесс, просто храним статику

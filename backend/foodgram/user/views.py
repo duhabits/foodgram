@@ -1,18 +1,23 @@
-from rest_framework import viewsets, status, permissions, generics
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework.parsers import MultiPartParser, FormParser
-from food.models import Subscription, Recipe  # Изменено с Food на Recipe
-from food.serializers import (
-    RecipeMinifiedSerializer,
-)  # Изменено с FoodMinifiedSerializer
+from djoser.views import UserViewSet as DjoserUserViewSet
+
+from food.models import Subscription, Recipe
+from food.serializers import RecipeMinifiedSerializer
 from .serializers import (
     UserSerializer,
+    CustomUserCreateSerializer,
     SetAvatarSerializer,
+    SetAvatarResponseSerializer,
     SetPasswordSerializer,
+    AuthenticationErrorSerializer,
+    PermissionDeniedSerializer,
+    NotFoundSerializer,
 )
 
 User = get_user_model()
@@ -20,19 +25,22 @@ User = get_user_model()
 
 class StandardResultsSetPagination(PageNumberPagination):
     """Пагинация для списка пользователей"""
-
     page_size = 6
     page_size_query_param = 'limit'
     max_page_size = 100
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+class UserViewSet(DjoserUserViewSet):
     """Вьюсет для пользователей"""
-
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
     permission_classes = [permissions.AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CustomUserCreateSerializer
+        return UserSerializer
 
     @action(
         detail=False,
@@ -47,7 +55,6 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 class SubscriptionViewSet(viewsets.GenericViewSet):
     """Вьюсет для подписок"""
-
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
     permission_classes = [permissions.IsAuthenticated]
@@ -65,30 +72,23 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
         if recipes_limit:
             recipes_limit = int(recipes_limit)
 
-        serializer = self.get_serializer(
+        serializer = UserSerializer(
             page, many=True, context={'request': request}
         )
 
-        # Добавляем рецепты и количество
         result_data = []
-        for user_data, user_instance in zip(serializer.data, page):
-            recipes = Recipe.objects.filter(
-                author=user_instance
-            )  # Изменено с Food на Recipe
+        for item, user in zip(serializer.data, page):
+            recipes = Recipe.objects.filter(author=user)
             if recipes_limit:
                 recipes = recipes[:recipes_limit]
 
-            user_data['recipes'] = (
-                RecipeMinifiedSerializer(  # Изменено с FoodMinifiedSerializer
-                    recipes, many=True, context={'request': request}
-                ).data
-            )
-            user_data['recipes_count'] = (
-                Recipe.objects.filter(  # Изменено с Food на Recipe
-                    author=user_instance
-                ).count()
-            )
-            result_data.append(user_data)
+            item['recipes'] = RecipeMinifiedSerializer(
+                recipes, many=True, context={'request': request}
+            ).data
+            item['recipes_count'] = Recipe.objects.filter(
+                author=user
+            ).count()
+            result_data.append(item)
 
         return self.get_paginated_response(result_data)
 
@@ -118,24 +118,17 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             serializer = UserSerializer(author, context={'request': request})
             data = serializer.data
 
-            # Добавляем рецепты и количество
-            recipes = Recipe.objects.filter(
-                author=author
-            )  # Изменено с Food на Recipe
+            recipes = Recipe.objects.filter(author=author)
             recipes_limit = request.query_params.get('recipes_limit')
             if recipes_limit:
                 recipes = recipes[: int(recipes_limit)]
 
-            data['recipes'] = (
-                RecipeMinifiedSerializer(  # Изменено с FoodMinifiedSerializer
-                    recipes, many=True, context={'request': request}
-                ).data
-            )
-            data['recipes_count'] = (
-                Recipe.objects.filter(  # Изменено с Food на Recipe
-                    author=author
-                ).count()
-            )
+            data['recipes'] = RecipeMinifiedSerializer(
+                recipes, many=True, context={'request': request}
+            ).data
+            data['recipes_count'] = Recipe.objects.filter(
+                author=author
+            ).count()
 
             return Response(data, status=status.HTTP_201_CREATED)
 
@@ -157,6 +150,8 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
     detail=False,
     methods=['put', 'delete'],
     permission_classes=[permissions.IsAuthenticated],
+    url_path='me/avatar',
+    parser_classes=[JSONParser],
 )
 def avatar_view(request):
     """Управление аватаром пользователя"""
@@ -166,20 +161,18 @@ def avatar_view(request):
         serializer = SetAvatarSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Удаляем старый аватар
         if user.avatar:
-            user.avatar.delete()
+            user.avatar.delete(save=False)
 
         user.avatar = serializer.validated_data['avatar']
         user.save()
 
-        return Response(
-            {'avatar': request.build_absolute_uri(user.avatar.url)}
-        )
+        response_serializer = SetAvatarResponseSerializer(user)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
         if user.avatar:
-            user.avatar.delete()
+            user.avatar.delete(save=False)
             user.avatar = None
             user.save()
 
@@ -190,6 +183,7 @@ def avatar_view(request):
     detail=False,
     methods=['post'],
     permission_classes=[permissions.IsAuthenticated],
+    url_path='set_password',
 )
 def set_password(request):
     """Смена пароля"""

@@ -7,7 +7,7 @@ from food.views import (
     TagViewSet,
     IngredientViewSet,
     RecipeViewSet,
-    download_shopping_cart,
+    redirect_short_link,
 )
 from user.views import (
     UserViewSet,
@@ -20,34 +20,28 @@ router = DefaultRouter()
 router.register(r'tags', TagViewSet, basename='tags')
 router.register(r'ingredients', IngredientViewSet, basename='ingredients')
 router.register(r'recipes', RecipeViewSet, basename='recipes')
-router.register(r'users', UserViewSet, basename='users')
-router.register(
-    r'users/subscriptions', SubscriptionViewSet, basename='subscriptions'
-)
+router.register(r'users', UserViewSet, basename='users')  # <-- ЭТО ВАЖНО!
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # API endpoints
+    
+    # API endpoints (должны быть ДО auth)
     path('api/', include(router.urls)),
-    # Djoser endpoints (регистрация, логин и т.д.)
+    
+    # Djoser endpoints (после api/)
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
-    # Специфические endpoints для пользователей
+    
+    # User endpoints
+    path('api/users/subscriptions/', SubscriptionViewSet.as_view({'get': 'list'}), name='subscriptions'),
+    path('api/users/<int:pk>/subscribe/', SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}), name='subscribe'),
     path('api/users/me/avatar/', avatar_view, name='user-avatar'),
     path('api/users/set_password/', set_password, name='set-password'),
-    # Shopping cart download
-    path(
-        'api/recipes/download_shopping_cart/',
-        download_shopping_cart,
-        name='download-shop',
-    ),
+    
+    # Короткие ссылки
+    path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
 ]
 
-# Добавляем обработку медиа-файлов в режиме разработки
 if settings.DEBUG:
-    urlpatterns += static(
-        settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
-    )
-    urlpatterns += static(
-        settings.STATIC_URL, document_root=settings.STATIC_ROOT
-    )
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

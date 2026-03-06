@@ -1,11 +1,14 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+import random
+import string
 
 User = get_user_model()
 
 
-class Tag(models.Model):  # Переименовано с Tags на Tag (единственное число)
+class Tag(models.Model):
+    """Модель тегов"""
     name = models.CharField(
         max_length=200, unique=True, verbose_name='Название'
     )
@@ -21,6 +24,7 @@ class Tag(models.Model):  # Переименовано с Tags на Tag (еди�
 
 
 class Ingredient(models.Model):
+    """Модель ингредиентов"""
     name = models.CharField(max_length=200, verbose_name='Название')
     measurement_unit = models.CharField(
         max_length=50, verbose_name='Единица измерения'
@@ -41,7 +45,8 @@ class Ingredient(models.Model):
         return f'{self.name}, {self.measurement_unit}'
 
 
-class Recipe(models.Model):  # Переименовано с Food на Recipe
+class Recipe(models.Model):
+    """Модель рецептов"""
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -76,7 +81,8 @@ class Recipe(models.Model):  # Переименовано с Food на Recipe
         return self.name
 
 
-class RecipeTag(models.Model):  # Переименовано с FoodTag
+class RecipeTag(models.Model):
+    """Связка рецепта и тега"""
     tag = models.ForeignKey(
         Tag, on_delete=models.CASCADE, related_name='recipe_tags'
     )
@@ -89,7 +95,8 @@ class RecipeTag(models.Model):  # Переименовано с FoodTag
         verbose_name_plural = 'Теги рецептов'
 
 
-class RecipeIngredient(models.Model):  # Переименовано с IngredientFood
+class RecipeIngredient(models.Model):
+    """Связка рецепта и ингредиента"""
     ingredient = models.ForeignKey(
         Ingredient, on_delete=models.CASCADE, related_name='recipe_ingredients'
     )
@@ -106,6 +113,7 @@ class RecipeIngredient(models.Model):  # Переименовано с Ingredien
 
 
 class Favorite(models.Model):
+    """Избранное"""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='favorites'
     )
@@ -124,6 +132,7 @@ class Favorite(models.Model):
 
 
 class ShoppingCart(models.Model):
+    """Корзина покупок"""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='shopping_cart'
     )
@@ -142,6 +151,7 @@ class ShoppingCart(models.Model):
 
 
 class Subscription(models.Model):
+    """Подписки на авторов"""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='subscriptions'
     )
@@ -157,3 +167,40 @@ class Subscription(models.Model):
                 fields=['user', 'author'], name='unique_subscription'
             )
         ]
+
+
+# ===== КОРОТКИЕ ССЫЛКИ (ДОБАВЛЕНО ПОСЛЕ ОПРЕДЕЛЕНИЯ RECIPE) =====
+
+class ShortLink(models.Model):
+    """Модель для коротких ссылок"""
+
+    recipe = models.OneToOneField(
+        Recipe,  # Теперь Recipe уже определён выше
+        on_delete=models.CASCADE,
+        related_name='short_link',
+        verbose_name='Рецепт'
+    )
+    code = models.CharField(
+        max_length=10,
+        unique=True,
+        db_index=True,
+        verbose_name='Короткий код'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Короткая ссылка'
+        verbose_name_plural = 'Короткие ссылки'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.code} -> {self.recipe.name}'
+
+    @classmethod
+    def generate_unique_code(cls, length=6):
+        """Генерация уникального кода"""
+        chars = string.ascii_letters + string.digits
+        while True:
+            code = ''.join(random.choices(chars, k=length))
+            if not cls.objects.filter(code=code).exists():
+                return code
