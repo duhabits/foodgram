@@ -23,7 +23,7 @@ services:
 
   backend:
     container_name: foodgram-backend
-    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
+    image: hesuo17/foodgram_backend:latest
     restart: always
     volumes:
       - static_volume:/app/static/
@@ -45,7 +45,7 @@ services:
 
   frontend:
     container_name: foodgram-frontend
-    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_frontend:latest
+    image: hesuo17/foodgram_frontend:latest
     volumes:
       - frontend_static:/build
     command: ["sh", "-c", "echo 'Frontend built successfully' && tail -f /dev/null"]
@@ -54,7 +54,7 @@ services:
 
   nginx:
     container_name: foodgram-nginx
-    image: ${{ secrets.DOCKER_USERNAME }}/foodgram_nginx:latest
+    image: hesuo17/foodgram_nginx:latest
     restart: always
     ports:
       - "80:80"
