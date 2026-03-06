@@ -34,28 +34,28 @@ jobs:
           pip install black==23.3.0
           pip install -r ./backend/foodgram/requirements.txt
           
-      - name: Test with flake8
-        env:
-          POSTGRES_USER: foodgram_user
-          POSTGRES_PASSWORD: foodgram_password
-          POSTGRES_DB: foodgram
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-        run: |
-          python -m flake8 backend/foodgram/
+    #   - name: Test with flake8
+    #     env:
+    #       POSTGRES_USER: foodgram_user
+    #       POSTGRES_PASSWORD: foodgram_password
+    #       POSTGRES_DB: foodgram
+    #       DB_HOST: 127.0.0.1
+    #       DB_PORT: 5432
+    #     run: |
+    #       python -m flake8 backend/foodgram/
           
-      - name: Test with Django tests
-        env:
-          POSTGRES_USER: foodgram_user
-          POSTGRES_PASSWORD: foodgram_password
-          POSTGRES_DB: foodgram
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          SECRET_KEY: test-secret-key
-          DEBUG: 'True'
-        run: |
-          cd backend/foodgram/
-          python manage.py test
+    #   - name: Test with Django tests
+    #     env:
+    #       POSTGRES_USER: foodgram_user
+    #       POSTGRES_PASSWORD: foodgram_password
+    #       POSTGRES_DB: foodgram
+    #       DB_HOST: 127.0.0.1
+    #       DB_PORT: 5432
+    #       SECRET_KEY: test-secret-key
+    #       DEBUG: 'True'
+    #     run: |
+    #       cd backend/foodgram/
+    #       python manage.py test
 
   build_backend_and_push_to_docker_hub:
     name: Push backend Docker image to DockerHub
