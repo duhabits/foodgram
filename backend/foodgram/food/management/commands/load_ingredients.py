@@ -24,7 +24,9 @@ class Command(BaseCommand):
             )
             return
 
-        self.stdout.write(f'Загрузка ингредиентов из {file_path}...')
+        self.stdout.write(
+            f'Загрузка ингредиентов из {file_path}...'
+        )
 
         count = 0
         try:
@@ -36,9 +38,11 @@ class Command(BaseCommand):
                         unit = row[1].strip()
 
                         if name and unit:
-                            ingredient, created = Ingredient.objects.get_or_create(
-                                name=name,
-                                measurement_unit=unit
+                            ingredient, created = (
+                                Ingredient.objects.get_or_create(
+                                    name=name,
+                                    measurement_unit=unit
+                                )
                             )
                             if created:
                                 count += 1
@@ -47,11 +51,14 @@ class Command(BaseCommand):
                                 )
 
             self.stdout.write(
-                self.style.SUCCESS(f'Успешно загружено {count} ингредиентов')
+                self.style.SUCCESS(
+                    f'Успешно загружено {count} ингредиентов'
+                )
             )
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Всего ингредиентов в базе: {Ingredient.objects.count()}'
+                    f'Всего ингредиентов в базе: '
+                    f'{Ingredient.objects.count()}'
                 )
             )
 

@@ -3,7 +3,11 @@ import csv
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from django.http import FileResponse, HttpResponseRedirect, HttpResponseNotFound
+from django.http import (
+    FileResponse,
+    HttpResponseRedirect,
+    HttpResponseNotFound,
+)
 from django.db.models import Sum
 from django.urls import reverse
 from rest_framework import viewsets, status, permissions
@@ -234,7 +238,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         for item in ingredients:
             line = (
                 f"□ {item['ingredient__name']} - "
-                f"{item['total_amount']} {item['ingredient__measurement_unit']}\n"
+                f"{item['total_amount']} "
+                f"{item['ingredient__measurement_unit']}\n"
             )
             buffer.write(line)
 
@@ -292,7 +297,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
             line = (
                 f"• {item['ingredient__name']} - "
-                f"{item['total_amount']} {item['ingredient__measurement_unit']}"
+                f"{item['total_amount']} "
+                f"{item['ingredient__measurement_unit']}"
             )
             p.drawString(30 * mm, y, line)
             y -= 8 * mm
