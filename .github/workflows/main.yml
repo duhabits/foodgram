@@ -204,9 +204,10 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "data/ingredients.csv"
           target: "/home/${{ secrets.USER }}/foodgram/data/"
-          strip_components: 0
+          strip_components: 1  # Важно: 1 убирает 'data/' из пути
           rm: false
           overwrite: true
+          debug: true  # Добавим для отладки
           
       - name: Copy docs folder (if exists)
         uses: appleboy/scp-action@master
