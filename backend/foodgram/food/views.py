@@ -132,10 +132,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         elif request.method == 'DELETE':
-            deleted = Favorite.objects.filter(
+            deleted_count, _ = Favorite.objects.filter(
                 user=user, recipe=recipe
-            ).delete()[0]
-            if not created:
+            ).delete()
+            if not deleted_count:
                 return Response(
                     {'errors': 'Рецепта не было в избранном'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -166,10 +166,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         elif request.method == 'DELETE':
-            deleted = ShoppingCart.objects.filter(
+            deleted_count, _ = ShoppingCart.objects.filter(
                 user=user, recipe=recipe
-            ).delete()[0]
-            if not created:
+            ).delete()
+            if not deleted_count:
                 return Response(
                     {'errors': 'Рецепта не было в списке покупок'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -232,8 +232,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         buffer.write('=' * 50 + '\n\n')
 
         for item in ingredients:
-            line = (f"□ {item['ingredient__name']} - "
-                    f"{item['total_amount']} {item['ingredient__measurement_unit']}\n")
+            line = (
+                f"□ {item['ingredient__name']} - "
+                f"{item['total_amount']} {item['ingredient__measurement_unit']}\n"
+            )
             buffer.write(line)
 
         buffer.seek(0)
@@ -288,8 +290,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 p.setFont("Helvetica", 12)
                 y = height - 20 * mm
 
-            line = (f"• {item['ingredient__name']} - "
-                    f"{item['total_amount']} {item['ingredient__measurement_unit']}")
+            line = (
+                f"• {item['ingredient__name']} - "
+                f"{item['total_amount']} {item['ingredient__measurement_unit']}"
+            )
             p.drawString(30 * mm, y, line)
             y -= 8 * mm
 
