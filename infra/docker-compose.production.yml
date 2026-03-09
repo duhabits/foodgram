@@ -20,7 +20,7 @@ services:
       retries: 5
     networks:
       - foodgram-network
-\
+
   backend:
     container_name: foodgram-backend
     image: hesuo17/foodgram_backend:latest
