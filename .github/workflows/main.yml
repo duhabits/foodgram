@@ -156,11 +156,20 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            mkdir -p ~/foodgram/infra
-            mkdir -p ~/foodgram/data
-            mkdir -p ~/foodgram/docs
-        
-      - name: Copy docker-compose.production.yml via ssh
+            mkdir -p /home/${{ secrets.USER }}/foodgram/infra
+            mkdir -p /home/${{ secrets.USER }}/foodgram/data
+            mkdir -p /home/${{ secrets.USER }}/foodgram/docs
+            sudo chown -R ${{ secrets.USER }}:${{ secrets.USER }} /home/${{ secrets.USER }}/foodgram
+            echo "✅ Directories created"
+            
+      - name: Show local files (debug)
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -la
+          echo "Data folder content:"
+          ls -la data/ || echo "Data folder not found"
+          
+      - name: Copy docker-compose.production.yml
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -168,10 +177,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "infra/docker-compose.production.yml"
-          target: "~/foodgram/infra/"
+          target: "/home/${{ secrets.USER }}/foodgram/infra/"
           strip_components: 1
-          
-      - name: Copy nginx.conf via ssh
+          rm: false
+          overwrite: true
+            
+      - name: Copy nginx.conf
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -179,10 +190,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "infra/nginx.conf"
-          target: "~/foodgram/infra/"
+          target: "/home/${{ secrets.USER }}/foodgram/infra/"
           strip_components: 1
-          
-      - name: Copy data folder with ingredients.csv via ssh
+          rm: false
+          overwrite: true
+            
+      - name: Copy ingredients.csv
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -190,10 +203,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "data/ingredients.csv"
-          target: "~/foodgram/data/"
-          strip_components: 1
+          target: "/home/${{ secrets.USER }}/foodgram/data/"
+          strip_components: 0
+          rm: false
+          overwrite: true
           
-      - name: Copy docs folder via ssh (if exists)
+      - name: Copy docs folder (if exists)
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -201,11 +216,13 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "docs/"
-          target: "~/foodgram/docs/"
-          strip_components: 1
+          target: "/home/${{ secrets.USER }}/foodgram/docs/"
+          strip_components: 0
+          rm: false
+          overwrite: true
         continue-on-error: true
-          
-      - name: Create .env file on server
+        
+      - name: Verify files on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -213,7 +230,32 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            cd ~/foodgram/infra
+            echo "📁 Checking copied files:"
+            echo ""
+            echo "=== INFRA FOLDER ==="
+            ls -la /home/${{ secrets.USER }}/foodgram/infra/
+            echo ""
+            echo "=== DATA FOLDER ==="
+            ls -la /home/${{ secrets.USER }}/foodgram/data/
+            echo ""
+            echo "=== INGREDIENTS FILE ==="
+            if [ -f /home/${{ secrets.USER }}/foodgram/data/ingredients.csv ]; then
+              echo "✅ ingredients.csv exists"
+              echo "First 5 lines:"
+              head -5 /home/${{ secrets.USER }}/foodgram/data/ingredients.csv
+            else
+              echo "❌ ingredients.csv NOT FOUND!"
+            fi
+            
+      - name: Create .env file
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            cd /home/${{ secrets.USER }}/foodgram/infra
             echo "DB_NAME=${{ secrets.DB_NAME }}" > .env
             echo "DB_USER=${{ secrets.DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
@@ -223,10 +265,10 @@ jobs:
             echo "DEBUG=False" >> .env
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
             echo "ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1" >> .env
-            echo ".env file created successfully"
+            echo "✅ .env file created:"
             cat .env | grep -v PASSWORD | grep -v KEY
-          
-      - name: Executing remote ssh commands to deploy
+            
+      - name: Deploy with docker compose
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -234,35 +276,63 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            cd ~/foodgram/infra
-            echo "Pulling Docker images..."
+            cd /home/${{ secrets.USER }}/foodgram/infra
+            
+            echo "🐳 Pulling Docker images..."
             sudo docker compose -f docker-compose.production.yml pull
             
-            echo "Stopping old containers..."
+            echo "🛑 Stopping old containers..."
             sudo docker compose -f docker-compose.production.yml down
             
-            echo "Starting new containers..."
+            echo "🚀 Starting new containers..."
             sudo docker compose -f docker-compose.production.yml up -d
             
-            echo "Waiting for containers to start..."
-            sleep 10
+            echo "⏳ Waiting for containers to start..."
+            sleep 15
             
-            echo "Running database migrations..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
-            
-            echo "Loading tags..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
-            
-            echo "Loading ingredients from data folder..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=data/ingredients.csv
-            
-            echo "Collecting static files..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
-            
-            echo "Checking container status..."
+            echo "📊 Container status:"
             sudo docker compose -f docker-compose.production.yml ps
             
-            echo "Deployment completed successfully!"
+            echo "🗄️ Running database migrations..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            
+            echo "🏷️ Loading tags..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
+            
+            echo "🥕 Loading ingredients from data folder..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=data/ingredients.csv
+            
+            echo "📦 Collecting static files..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            
+            echo ""
+            echo "✅✅✅ DEPLOYMENT COMPLETED SUCCESSFULLY! ✅✅✅"
+            echo ""
+            echo "📊 Final container status:"
+            sudo docker compose -f docker-compose.production.yml ps
+
+  send_message:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Send message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ **Деплой Foodgram успешно выполнен!**
+            
+            📦 **Репозиторий:** ${{ github.repository }}
+            🔍 **Коммит:** ${{ github.sha }}
+            👤 **Автор:** ${{ github.actor }}
+            📅 **Дата:** ${{ github.event.head_commit.timestamp }}
+            
+            🌐 **Ссылка:** http://${{ secrets.HOST }}
+            
+            🚀 **Статус:** Все сервисы запущены, данные загружены
 
   send_message:
     runs-on: ubuntu-latest
