@@ -148,6 +148,18 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         
+      - name: Create necessary directories on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            mkdir -p ~/foodgram/infra
+            mkdir -p ~/foodgram/data
+            mkdir -p ~/foodgram/docs
+        
       - name: Copy docker-compose.production.yml via ssh
         uses: appleboy/scp-action@master
         with:
@@ -156,7 +168,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "infra/docker-compose.production.yml"
-          target: "foodgram"
+          target: "~/foodgram/infra/"
+          strip_components: 1
           
       - name: Copy nginx.conf via ssh
         uses: appleboy/scp-action@master
@@ -166,7 +179,52 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "infra/nginx.conf"
-          target: "foodgram"
+          target: "~/foodgram/infra/"
+          strip_components: 1
+          
+      - name: Copy data folder with ingredients.csv via ssh
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "data/ingredients.csv"
+          target: "~/foodgram/data/"
+          strip_components: 1
+          
+      - name: Copy docs folder via ssh (if exists)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "docs/"
+          target: "~/foodgram/docs/"
+          strip_components: 1
+        continue-on-error: true
+          
+      - name: Create .env file on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            cd ~/foodgram/infra
+            echo "DB_NAME=${{ secrets.DB_NAME }}" > .env
+            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "DB_HOST=db" >> .env
+            echo "DB_PORT=5432" >> .env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+            echo "DEBUG=False" >> .env
+            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+            echo "ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1" >> .env
+            echo ".env file created successfully"
+            cat .env | grep -v PASSWORD | grep -v KEY
           
       - name: Executing remote ssh commands to deploy
         uses: appleboy/ssh-action@master
@@ -176,14 +234,35 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            cd foodgram/infra
+            cd ~/foodgram/infra
+            echo "Pulling Docker images..."
             sudo docker compose -f docker-compose.production.yml pull
+            
+            echo "Stopping old containers..."
             sudo docker compose -f docker-compose.production.yml down
+            
+            echo "Starting new containers..."
             sudo docker compose -f docker-compose.production.yml up -d
-            sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
-            sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_tags
-            sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_ingredients --file=data/ingredients.csv
-            sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic --noinput
+            
+            echo "Waiting for containers to start..."
+            sleep 10
+            
+            echo "Running database migrations..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            
+            echo "Loading tags..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
+            
+            echo "Loading ingredients from data folder..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=data/ingredients.csv
+            
+            echo "Collecting static files..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            
+            echo "Checking container status..."
+            sudo docker compose -f docker-compose.production.yml ps
+            
+            echo "Deployment completed successfully!"
 
   send_message:
     runs-on: ubuntu-latest
@@ -202,5 +281,8 @@ jobs:
             Репозиторий: ${{ github.repository }}
             Коммит: ${{ github.sha }}
             Автор: ${{ github.actor }}
+            Дата: ${{ github.event.head_commit.timestamp }}
             
             Ссылка: http://${{ secrets.HOST }}
+            
+            Статус: Все сервисы запущены, данные загружены 🚀
