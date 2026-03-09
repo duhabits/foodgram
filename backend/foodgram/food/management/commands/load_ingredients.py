@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         file_path = options['file']
-        
+
         if not os.path.exists(file_path):
             self.stdout.write(
                 self.style.ERROR(f'Файл {file_path} не найден!')
@@ -25,7 +25,7 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f'Загрузка ингредиентов из {file_path}...')
-        
+
         count = 0
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -34,7 +34,7 @@ class Command(BaseCommand):
                     if len(row) >= 2:
                         name = row[0].strip()
                         unit = row[1].strip()
-                        
+
                         if name and unit:
                             ingredient, created = Ingredient.objects.get_or_create(
                                 name=name,
@@ -42,15 +42,19 @@ class Command(BaseCommand):
                             )
                             if created:
                                 count += 1
-                                self.stdout.write(f'  Добавлен: {name} ({unit})')
-                
+                                self.stdout.write(
+                                    f'  Добавлен: {name} ({unit})'
+                                )
+
             self.stdout.write(
                 self.style.SUCCESS(f'Успешно загружено {count} ингредиентов')
             )
             self.stdout.write(
-                self.style.SUCCESS(f'Всего ингредиентов в базе: {Ingredient.objects.count()}')
+                self.style.SUCCESS(
+                    f'Всего ингредиентов в базе: {Ingredient.objects.count()}'
+                )
             )
-                
+
         except Exception as e:
             self.stdout.write(
                 self.style.ERROR(f'Ошибка при загрузке: {e}')

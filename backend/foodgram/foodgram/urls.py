@@ -20,28 +20,38 @@ router = DefaultRouter()
 router.register(r'tags', TagViewSet, basename='tags')
 router.register(r'ingredients', IngredientViewSet, basename='ingredients')
 router.register(r'recipes', RecipeViewSet, basename='recipes')
-router.register(r'users', UserViewSet, basename='users')  # <-- ЭТО ВАЖНО!
+router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    # API endpoints (должны быть ДО auth)
+
     path('api/', include(router.urls)),
-    
-    # Djoser endpoints (после api/)
+
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
-    
-    # User endpoints
-    path('api/users/subscriptions/', SubscriptionViewSet.as_view({'get': 'list'}), name='subscriptions'),
-    path('api/users/<int:pk>/subscribe/', SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}), name='subscribe'),
+
+    path(
+        'api/users/subscriptions/',
+        SubscriptionViewSet.as_view({'get': 'list'}),
+        name='subscriptions'
+    ),
+    path(
+        'api/users/<int:pk>/subscribe/',
+        SubscriptionViewSet.as_view(
+            {'post': 'subscribe', 'delete': 'subscribe'}
+        ),
+        name='subscribe'
+    ),
     path('api/users/me/avatar/', avatar_view, name='user-avatar'),
     path('api/users/set_password/', set_password, name='set-password'),
-    
-    # Короткие ссылки
+
     path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(
+        settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
+    )
+    urlpatterns += static(
+        settings.STATIC_URL, document_root=settings.STATIC_ROOT
+    )

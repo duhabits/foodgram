@@ -1,8 +1,8 @@
 from django.contrib import admin
-from django.db.models import Count
+from django.db.models import Count, F
 from .models import (
-    Tag, Ingredient, Recipe, RecipeTag, 
-    RecipeIngredient, Favorite, ShoppingCart, 
+    Tag, Ingredient, Recipe, RecipeTag,
+    RecipeIngredient, Favorite, ShoppingCart,
     Subscription, ShortLink
 )
 
@@ -48,20 +48,21 @@ class IngredientAdmin(admin.ModelAdmin):
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     """Админка для рецептов"""
-    list_display = ('id', 'name', 'author', 'cooking_time', 'created_at', 'favorites_count')
+    list_display = ('id', 'name', 'author', 'cooking_time', 'created_at',
+                    'favorites_count')
     list_display_links = ('id', 'name')
     search_fields = ('name', 'author__username', 'author__email')
     list_filter = ('tags', 'cooking_time')
     readonly_fields = ('created_at', 'favorites_count')
     inlines = [RecipeIngredientInline, RecipeTagInline]
-    
+
     def get_queryset(self, request):
         """Оптимизация запросов и добавление аннотации"""
         queryset = super().get_queryset(request)
         return queryset.annotate(
             favorites_count=Count('favorites')
         )
-    
+
     def favorites_count(self, obj):
         """Количество добавлений в избранное"""
         return getattr(obj, 'favorites_count', obj.favorites.count())
@@ -91,8 +92,9 @@ class FavoriteAdmin(admin.ModelAdmin):
     """Админка для избранного"""
     list_display = ('id', 'user', 'recipe', 'get_recipe_author')
     list_display_links = ('id', 'user')
-    search_fields = ('user__username', 'recipe__name', 'recipe__author__username')
-    
+    search_fields = ('user__username', 'recipe__name',
+                     'recipe__author__username')
+
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
     get_recipe_author.short_description = 'Автор рецепта'
@@ -104,8 +106,9 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     """Админка для корзины покупок"""
     list_display = ('id', 'user', 'recipe', 'get_recipe_author')
     list_display_links = ('id', 'user')
-    search_fields = ('user__username', 'recipe__name', 'recipe__author__username')
-    
+    search_fields = ('user__username', 'recipe__name',
+                     'recipe__author__username')
+
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
     get_recipe_author.short_description = 'Автор рецепта'
@@ -117,10 +120,10 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'author')
     list_display_links = ('id', 'user')
     search_fields = ('user__username', 'author__username')
-    
+
     def get_queryset(self, request):
         """Запрещаем подписку на самого себя"""
-        return super().get_queryset(request).exclude(user=models.F('author'))
+        return super().get_queryset(request).exclude(user=F('author'))
 
 
 @admin.register(ShortLink)

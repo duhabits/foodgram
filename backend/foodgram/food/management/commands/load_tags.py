@@ -7,7 +7,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Загрузка тегов...')
-        
+
         tags = [
             {'name': 'Завтрак', 'slug': 'breakfast'},
             {'name': 'Обед', 'slug': 'lunch'},
@@ -19,10 +19,10 @@ class Command(BaseCommand):
             {'name': 'Напитки', 'slug': 'drinks'},
             {'name': 'Закуски', 'slug': 'snacks'},
         ]
-        
+
         created_count = 0
         existed_count = 0
-        
+
         for tag_data in tags:
             tag, created = Tag.objects.get_or_create(
                 name=tag_data['name'],
@@ -34,8 +34,11 @@ class Command(BaseCommand):
             else:
                 existed_count += 1
                 self.stdout.write(f'  ⏺️ Уже существует: {tag.name}')
-        
+
         self.stdout.write(self.style.SUCCESS(
-            f'\n🎉 Загружено тегов: {created_count} новых, {existed_count} существовало'
+            f'\n🎉 Загружено тегов: {created_count} новых, '
+            f'{existed_count} существовало'
         ))
-        self.stdout.write(self.style.SUCCESS(f'📊 Всего тегов в базе: {Tag.objects.count()}'))
+        self.stdout.write(self.style.SUCCESS(
+            f'📊 Всего тегов в базе: {Tag.objects.count()}'
+        ))

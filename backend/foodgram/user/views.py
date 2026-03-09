@@ -15,9 +15,6 @@ from .serializers import (
     SetAvatarSerializer,
     SetAvatarResponseSerializer,
     SetPasswordSerializer,
-    AuthenticationErrorSerializer,
-    PermissionDeniedSerializer,
-    NotFoundSerializer,
 )
 
 User = get_user_model()

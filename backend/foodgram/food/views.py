@@ -3,7 +3,6 @@ import csv
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from django.shortcuts import get_object_or_404
 from django.http import FileResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.db.models import Sum
 from django.urls import reverse
@@ -11,7 +10,6 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
     Recipe,
@@ -137,7 +135,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             deleted = Favorite.objects.filter(
                 user=user, recipe=recipe
             ).delete()[0]
-            if not deleted:
+            if not created:
                 return Response(
                     {'errors': 'Рецепта не было в избранном'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -171,7 +169,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             deleted = ShoppingCart.objects.filter(
                 user=user, recipe=recipe
             ).delete()[0]
-            if not deleted:
+            if not created:
                 return Response(
                     {'errors': 'Рецепта не было в списке покупок'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -206,7 +204,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         format_type = request.query_params.get('format', 'txt').lower()
 
         cart_recipes = Recipe.objects.filter(shopping_cart__user=user)
-        
+
         if not cart_recipes.exists():
             return Response(
                 {'errors': 'Список покупок пуст'},
@@ -234,7 +232,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         buffer.write('=' * 50 + '\n\n')
 
         for item in ingredients:
-            line = f"□ {item['ingredient__name']} - {item['total_amount']} {item['ingredient__measurement_unit']}\n"
+            line = (f"□ {item['ingredient__name']} - "
+                    f"{item['total_amount']} {item['ingredient__measurement_unit']}\n")
             buffer.write(line)
 
         buffer.seek(0)
@@ -289,7 +288,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 p.setFont("Helvetica", 12)
                 y = height - 20 * mm
 
-            line = f"• {item['ingredient__name']} - {item['total_amount']} {item['ingredient__measurement_unit']}"
+            line = (f"• {item['ingredient__name']} - "
+                    f"{item['total_amount']} {item['ingredient__measurement_unit']}")
             p.drawString(30 * mm, y, line)
             y -= 8 * mm
 
