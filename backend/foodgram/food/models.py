@@ -149,27 +149,6 @@ class ShoppingCart(models.Model):
         ]
 
 
-class Subscription(models.Model):
-    """Подписки на авторов"""
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='subscriptions'
-    )
-    author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='subscribers'
-    )
-
-    class Meta:
-        verbose_name = 'Подписка'
-        verbose_name_plural = 'Подписки'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'author'], name='unique_subscription'
-            )
-        ]
-
-
-# ===== КОРОТКИЕ ССЫЛКИ (ДОБАВЛЕНО ПОСЛЕ ОПРЕДЕЛЕНИЯ RECIPE) =====
-
 class ShortLink(models.Model):
     """Модель для коротких ссылок"""
 
