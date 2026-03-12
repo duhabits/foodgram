@@ -191,7 +191,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
         short_url = request.build_absolute_uri(
-            reverse('short-link-redirect', args=[short_link.code])
+            f'/s/{short_link.code}/'
         )
 
         return Response({'short-link': short_url})
@@ -231,9 +231,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def _generate_txt_response(self, ingredients):
         """Генерация TXT файла"""
-        buffer = io.StringIO()
-        buffer.write('СПИСОК ПОКУПОК\n')
-        buffer.write('=' * 50 + '\n\n')
+        buffer = io.BytesIO()
+        buffer.write('СПИСОК ПОКУПОК\n'.encode('utf-8'))
+        buffer.write('='.encode('utf-8') * 50 + '\n\n'.encode('utf-8'))
 
         for item in ingredients:
             line = (
@@ -241,7 +241,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 f"{item['total_amount']} "
                 f"{item['ingredient__measurement_unit']}\n"
             )
-            buffer.write(line)
+            buffer.write(line.encode('utf-8'))
 
         buffer.seek(0)
 
@@ -315,10 +315,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 def redirect_short_link(request, code):
-    """Редирект с короткой ссылки на полный рецепт"""
+    """Редирект с короткой ссылки на страницу рецепта во фронтенде"""
     try:
         short_link = ShortLink.objects.select_related('recipe').get(code=code)
-        recipe_url = reverse('recipes-detail', args=[short_link.recipe.id])
-        return HttpResponseRedirect(recipe_url)
+        return HttpResponseRedirect(f'/recipes/{short_link.recipe.id}/')
     except ShortLink.DoesNotExist:
         return HttpResponseNotFound('Ссылка не найдена')

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import MyUser
+from django.core.exceptions import ValidationError
+from .models import MyUser, Subscription
 
 
 @admin.register(MyUser)
@@ -36,3 +37,16 @@ class MyUserAdmin(UserAdmin):
             ),
         }),
     )
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    """Админка для подписок"""
+    list_display = ('id', 'user', 'author')
+    list_display_links = ('id', 'user')
+    search_fields = ('user__username', 'author__username')
+
+    def save_model(self, request, obj, form, change):
+        if obj.user == obj.author:
+            raise ValidationError("Нельзя подписаться на самого себя")
+        super().save_model(request, obj, form, change)

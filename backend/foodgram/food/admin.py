@@ -1,9 +1,9 @@
 from django.contrib import admin
-from django.db.models import Count, F
+from django.db.models import Count
+from django.core.exceptions import ValidationError
 from .models import (
-    Tag, Ingredient, Recipe, RecipeTag,
-    RecipeIngredient, Favorite, ShoppingCart,
-    Subscription, ShortLink
+    Tag, Ingredient, Recipe, RecipeIngredient,
+    Favorite, ShoppingCart, ShortLink
 )
 
 
@@ -14,15 +14,6 @@ class RecipeIngredientInline(admin.TabularInline):
     min_num = 1
     verbose_name = 'Ингредиент'
     verbose_name_plural = 'Ингредиенты'
-
-
-class RecipeTagInline(admin.TabularInline):
-    """Инлайн для тегов в рецепте"""
-    model = RecipeTag
-    extra = 1
-    min_num = 1
-    verbose_name = 'Тег'
-    verbose_name_plural = 'Теги'
 
 
 @admin.register(Tag)
@@ -48,18 +39,37 @@ class IngredientAdmin(admin.ModelAdmin):
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     """Админка для рецептов"""
-    list_display = ('id', 'name', 'author', 'cooking_time', 'created_at',
-                    'favorites_count')
+    list_display = (
+        'id', 'name', 'author', 'cooking_time',
+        'created_at', 'favorites_count', 'has_image'
+    )
     list_display_links = ('id', 'name')
     search_fields = ('name', 'author__username', 'author__email')
     list_filter = ('tags', 'cooking_time')
     readonly_fields = ('created_at', 'favorites_count')
-    inlines = [RecipeIngredientInline, RecipeTagInline]
+    filter_horizontal = ('tags',)
+    inlines = [RecipeIngredientInline]
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('author', 'name', 'text', 'cooking_time', 'image')
+        }),
+        ('Связи', {
+            'fields': ('tags', 'ingredients'),
+            'classes': ('wide',)
+        }),
+        ('Даты', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
 
     def get_queryset(self, request):
         """Оптимизация запросов и добавление аннотации"""
         queryset = super().get_queryset(request)
-        return queryset.annotate(
+        return queryset.select_related('author').prefetch_related(
+            'tags', 'ingredients'
+        ).annotate(
             favorites_count=Count('favorites')
         )
 
@@ -69,6 +79,18 @@ class RecipeAdmin(admin.ModelAdmin):
     favorites_count.short_description = 'В избранном'
     favorites_count.admin_order_field = 'favorites_count'
 
+    def has_image(self, obj):
+        """Проверка наличия изображения"""
+        return bool(obj.image)
+    has_image.boolean = True
+    has_image.short_description = 'Есть изображение'
+
+    def save_model(self, request, obj, form, change):
+        """Проверка наличия изображения при создании"""
+        if not obj.image and not change:
+            raise ValidationError("Рецепт должен содержать изображение")
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(admin.ModelAdmin):
@@ -77,14 +99,7 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
     list_display_links = ('id', 'recipe')
     search_fields = ('recipe__name', 'ingredient__name')
     list_filter = ('ingredient__measurement_unit',)
-
-
-@admin.register(RecipeTag)
-class RecipeTagAdmin(admin.ModelAdmin):
-    """Админка для тегов рецепта"""
-    list_display = ('id', 'recipe', 'tag')
-    list_display_links = ('id', 'recipe')
-    search_fields = ('recipe__name', 'tag__name')
+    raw_id_fields = ('recipe', 'ingredient')
 
 
 @admin.register(Favorite)
@@ -92,8 +107,9 @@ class FavoriteAdmin(admin.ModelAdmin):
     """Админка для избранного"""
     list_display = ('id', 'user', 'recipe', 'get_recipe_author')
     list_display_links = ('id', 'user')
-    search_fields = ('user__username', 'recipe__name',
-                     'recipe__author__username')
+    search_fields = ('user__username', 'recipe__name', 'recipe__author__username')
+    raw_id_fields = ('user', 'recipe')
+    list_filter = ('recipe__author',)
 
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
@@ -106,30 +122,29 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     """Админка для корзины покупок"""
     list_display = ('id', 'user', 'recipe', 'get_recipe_author')
     list_display_links = ('id', 'user')
-    search_fields = ('user__username', 'recipe__name',
-                     'recipe__author__username')
+    search_fields = ('user__username', 'recipe__name', 'recipe__author__username')
+    raw_id_fields = ('user', 'recipe')
+    list_filter = ('recipe__author',)
 
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
     get_recipe_author.short_description = 'Автор рецепта'
-
-
-@admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
-    """Админка для подписок"""
-    list_display = ('id', 'user', 'author')
-    list_display_links = ('id', 'user')
-    search_fields = ('user__username', 'author__username')
-
-    def get_queryset(self, request):
-        """Запрещаем подписку на самого себя"""
-        return super().get_queryset(request).exclude(user=F('author'))
+    get_recipe_author.admin_order_field = 'recipe__author__username'
 
 
 @admin.register(ShortLink)
 class ShortLinkAdmin(admin.ModelAdmin):
     """Админка для коротких ссылок"""
-    list_display = ('id', 'code', 'recipe', 'created_at')
+    list_display = ('id', 'code', 'recipe', 'created_at', 'get_recipe_link')
     list_display_links = ('id', 'code')
     search_fields = ('code', 'recipe__name')
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'code')
+    raw_id_fields = ('recipe',)
+
+    def get_recipe_link(self, obj):
+        from django.utils.html import format_html
+        return format_html(
+            '<a href="/s/{}/" target="_blank">Перейти</a>',
+            obj.code
+        )
+    get_recipe_link.short_description = 'Ссылка'

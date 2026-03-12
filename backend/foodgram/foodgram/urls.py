@@ -24,12 +24,9 @@ router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
     path('api/', include(router.urls)),
-
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
-
     path(
         'api/users/subscriptions/',
         SubscriptionViewSet.as_view({'get': 'list'}),
@@ -44,7 +41,6 @@ urlpatterns = [
     ),
     path('api/users/me/avatar/', avatar_view, name='user-avatar'),
     path('api/users/set_password/', set_password, name='set-password'),
-
     path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
 ]
 

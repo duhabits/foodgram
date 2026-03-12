@@ -5,7 +5,6 @@ from .models import (
     Tag,
     Ingredient,
     RecipeIngredient,
-    RecipeTag,
 )
 from .fields import Base64ImageField
 from user.serializers import UserSerializer
@@ -168,8 +167,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             recipe.image = image
             recipe.save()
 
-        for tag in tags_data:
-            RecipeTag.objects.create(recipe=recipe, tag=tag)
+        recipe.tags.set(tags_data)
 
         for ingredient_data in ingredients_data:
             RecipeIngredient.objects.create(
@@ -178,7 +176,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 amount=ingredient_data['amount'],
             )
 
-        return recipe
+        return Recipe.objects.prefetch_related(
+            'tags', 'recipe_ingredients__ingredient', 'author'
+        ).get(pk=recipe.pk)
 
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('ingredients', None)
@@ -196,9 +196,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         instance.save()
 
         if tags_data is not None:
-            instance.tags.clear()
-            for tag in tags_data:
-                RecipeTag.objects.create(recipe=instance, tag=tag)
+            instance.tags.set(tags_data)
 
         if ingredients_data is not None:
             instance.recipe_ingredients.all().delete()
@@ -209,4 +207,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                     amount=ingredient_data['amount'],
                 )
 
-        return instance
+        return Recipe.objects.prefetch_related(
+            'tags', 'recipe_ingredients__ingredient', 'author'
+        ).get(pk=instance.pk)

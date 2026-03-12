@@ -55,7 +55,7 @@ class Recipe(models.Model):
     )
     name = models.CharField(max_length=200, verbose_name='Название')
     tags = models.ManyToManyField(
-        Tag, through='RecipeTag', verbose_name='Теги'
+        Tag, related_name='recipes', verbose_name='Теги'
     )
     ingredients = models.ManyToManyField(
         Ingredient, through='RecipeIngredient', verbose_name='Ингредиенты'
@@ -80,15 +80,14 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        if not self.image:
+            from django.core.exceptions import ValidationError
+            raise ValidationError('Рецепт должен содержать изображение')
 
-class RecipeTag(models.Model):
-    """Связка рецепта и тега"""
-    tag = models.ForeignKey(
-        Tag, on_delete=models.CASCADE, related_name='recipe_tags'
-    )
-    recipe = models.ForeignKey(
-        Recipe, on_delete=models.CASCADE, related_name='recipe_tags'
-    )
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Тег рецепта'
