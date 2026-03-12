@@ -7,8 +7,9 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
 
-from food.models import Subscription, Recipe
+from food.models import Recipe
 from food.serializers import RecipeMinifiedSerializer
+from user.models import Subscription  # Импортируем из user.models
 from .serializers import (
     UserSerializer,
     CustomUserCreateSerializer,
