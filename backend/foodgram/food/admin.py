@@ -55,7 +55,7 @@ class RecipeAdmin(admin.ModelAdmin):
             'fields': ('author', 'name', 'text', 'cooking_time', 'image')
         }),
         ('Связи', {
-            'fields': ('tags', 'ingredients'),
+            'fields': ('tags',),  # Убрали 'ingredients' - они управляются через Inline
             'classes': ('wide',)
         }),
         ('Даты', {
@@ -68,7 +68,7 @@ class RecipeAdmin(admin.ModelAdmin):
         """Оптимизация запросов и добавление аннотации"""
         queryset = super().get_queryset(request)
         return queryset.select_related('author').prefetch_related(
-            'tags', 'ingredients'
+            'tags', 'recipe_ingredients__ingredient'
         ).annotate(
             favorites_count=Count('favorites')
         )
