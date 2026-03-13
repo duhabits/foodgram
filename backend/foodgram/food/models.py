@@ -80,19 +80,6 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
-    def clean(self):
-        if not self.image:
-            from django.core.exceptions import ValidationError
-            raise ValidationError('Рецепт должен содержать изображение')
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
-
-    class Meta:
-        verbose_name = 'Тег рецепта'
-        verbose_name_plural = 'Теги рецептов'
-
 
 class RecipeIngredient(models.Model):
     """Связка рецепта и ингредиента"""
@@ -153,7 +140,7 @@ class ShortLink(models.Model):
     """Модель для коротких ссылок"""
 
     recipe = models.OneToOneField(
-        Recipe,  # Теперь Recipe уже определён выше
+        Recipe,
         on_delete=models.CASCADE,
         related_name='short_link',
         verbose_name='Рецепт'
