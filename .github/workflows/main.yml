@@ -295,6 +295,12 @@ jobs:
             sudo docker compose -f docker-compose.production.yml ps
             
             echo "🗄️ Running database migrations..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
+            
+            echo "🗄️ Running database migrations..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations food
+
+            echo "🗄️ Running database migrations..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             
             echo "🏷️ Loading tags..."
