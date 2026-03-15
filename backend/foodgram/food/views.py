@@ -90,6 +90,28 @@ class RecipeViewSet(viewsets.ModelViewSet):
         """Сохранение автора при создании"""
         serializer.save(author=self.request.user)
 
+    # ====================== ИСПРАВЛЕНИЕ ======================
+    def create(self, request, *args, **kwargs):
+        """Переопределяем create, чтобы возвращать полный рецепт (с id)"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Сохраняем рецепт (perform_create добавляет автора)
+        self.perform_create(serializer)
+
+        # Теперь сериализуем через RecipeListSerializer (полный ответ)
+        response_serializer = RecipeListSerializer(
+            serializer.instance, context={'request': request}
+        )
+
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+    # ========================================================
+
     def get_queryset(self):
         """Фильтрация рецептов"""
         queryset = super().get_queryset()
