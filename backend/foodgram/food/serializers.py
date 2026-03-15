@@ -85,7 +85,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
                 'id': ri.ingredient.id,
                 'name': ri.ingredient.name,
                 'measurement_unit': ri.ingredient.measurement_unit,
-                'amount': ri.amount
+                'amount': ri.amount,
             }
             for ri in recipe_ingredients
         ]
@@ -104,18 +104,14 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
 
 class IngredientCreateSerializer(serializers.Serializer):
-    id = serializers.PrimaryKeyRelatedField(
-        queryset=Ingredient.objects.all()
-    )
+    id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
     amount = serializers.IntegerField(min_value=1)
 
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     ingredients = IngredientCreateSerializer(many=True, write_only=True)
     tags = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Tag.objects.all(),
-        write_only=True
+        many=True, queryset=Tag.objects.all(), write_only=True
     )
     image = Base64ImageField(required=True, allow_null=False, write_only=True)
     cooking_time = serializers.IntegerField(min_value=1)
@@ -176,9 +172,8 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 amount=ingredient_data['amount'],
             )
 
-        return Recipe.objects.prefetch_related(
-            'tags', 'recipe_ingredients__ingredient', 'author'
-        ).get(pk=recipe.pk)
+        # ВОЗВРАЩАЕМ СОЗДАННЫЙ ЭКЗЕМПЛЯР
+        return recipe
 
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('ingredients', None)
@@ -206,7 +201,4 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                     ingredient=ingredient_data['id'],
                     amount=ingredient_data['amount'],
                 )
-
-        return Recipe.objects.prefetch_related(
-            'tags', 'recipe_ingredients__ingredient', 'author'
-        ).get(pk=instance.pk)
+        return instance
