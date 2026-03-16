@@ -178,7 +178,7 @@ jobs:
           rm: false
           overwrite: true
           
-      - name: Deploy with docker compose - clean start with volume removal
+      - name: Deploy with docker compose - clean start
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -189,42 +189,29 @@ jobs:
             cd /home/${{ secrets.USER }}/foodgram/infra
             
             echo "🧹 Cleaning up old containers and volumes..."
-            
-            # Останавливаем и удаляем ВСЕ старые контейнеры и ТОМА
             sudo docker compose -f docker-compose.production.yml down -v
-            
-            # Удаляем все неиспользуемые тома для очистки
             sudo docker volume prune -f
             
             echo "🐳 Pulling fresh Docker images..."
             sudo docker compose -f docker-compose.production.yml pull
             
-            echo "📝 Creating complete .env file (with PostgreSQL variables)..."
+            echo "📝 Creating .env file..."
+            rm -f .env
             cat > .env << EOF
-# PostgreSQL credentials
-POSTGRES_USER=foodgram_user
-POSTGRES_PASSWORD=foodgram_password
-POSTGRES_DB=foodgram
-
-# Django database settings
-DB_NAME=foodgram
-DB_USER=foodgram_user
-DB_PASSWORD=foodgram_password
-DB_HOST=db
-DB_PORT=5432
-
-# Django settings
-SECRET_KEY=${{ secrets.SECRET_KEY }}
-DEBUG=False
-ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1,158.160.31.143
-
-# Docker
-DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-EOF
-
-            echo "✅ .env file created:"
-            cat .env | grep -v PASSWORD | grep -v KEY
-            
+            POSTGRES_USER=foodgram_user
+            POSTGRES_PASSWORD=foodgram_password
+            POSTGRES_DB=foodgram
+            DB_NAME=foodgram
+            DB_USER=foodgram_user
+            DB_PASSWORD=foodgram_password
+            DB_HOST=db
+            DB_PORT=5432
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DEBUG=False
+            ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1
+            DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            EOF
+            echo "✅ .env file created"
             echo "🚀 Starting fresh containers..."
             sudo docker compose -f docker-compose.production.yml up -d
             
@@ -234,18 +221,10 @@ EOF
             echo "📊 Container status:"
             sudo docker compose -f docker-compose.production.yml ps
             
-            # Проверяем, запустилась ли база данных
-            echo "🔍 Checking database logs:"
-            sudo docker compose -f docker-compose.production.yml logs db | tail -20
-            
-            echo "🗄️ Running database migrations from scratch..."
+            echo "🗄️ Running database migrations..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations food
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
-            
-            # Проверяем наличие таблиц
-            echo "🔍 Checking database tables:"
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py dbshell -c "\dt"
             
             echo "🏷️ Loading tags..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
