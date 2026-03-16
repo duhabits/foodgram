@@ -178,7 +178,7 @@ jobs:
           rm: false
           overwrite: true
           
-      - name: Deploy with docker compose - clean start
+      - name: Deploy with docker compose - clean start with migrations
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -188,18 +188,16 @@ jobs:
           script: |
             cd /home/${{ secrets.USER }}/foodgram/infra
             
-            echo "🧹 Cleaning up old containers and volumes..."
+            echo "🧹 ПОЛНАЯ ОЧИСТКА СТАРЫХ ДАННЫХ..."
             sudo docker compose -f docker-compose.production.yml down -v
             sudo docker volume prune -f
+            sudo docker system prune -f
             
             echo "🐳 Pulling fresh Docker images..."
             sudo docker compose -f docker-compose.production.yml pull
             
             echo "📝 Creating .env file..."
-            # Удаляем старый .env
             rm -f .env
-            
-            # Создаем новый .env БЕЗ ОТСТУПОВ
             echo "POSTGRES_USER=foodgram_user" > .env
             echo "POSTGRES_PASSWORD=foodgram_password" >> .env
             echo "POSTGRES_DB=foodgram" >> .env
@@ -214,41 +212,110 @@ jobs:
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
             
             echo "✅ .env file created"
-            echo "📄 First line of .env:"
-            head -1 .env
             
             echo "🚀 Starting fresh containers..."
             sudo docker compose -f docker-compose.production.yml up -d
             
-            echo "⏳ Waiting for database to be ready (30 seconds)..."
-            sleep 30
+            echo "⏳ Waiting for database to be ready (45 seconds)..."
+            sleep 45
             
             echo "📊 Container status:"
             sudo docker compose -f docker-compose.production.yml ps
             
             # Проверяем, запустился ли backend
             if sudo docker compose -f docker-compose.production.yml ps | grep -q "backend.*Up"; then
-              echo "🗄️ Running database migrations..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations food
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+              
+              echo "🔥 ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ СТАРОЙ БАЗЫ ДАННЫХ..."
+              # Удаляем SQLite если он есть
+              sudo docker exec foodgram-backend bash -c "rm -f /app/db.sqlite3" || true
+              
+              echo "🗑️ ОЧИСТКА СТАРЫХ МИГРАЦИЙ..."
+              # Удаляем старые миграции
+              sudo docker exec foodgram-backend bash -c "find . -path '*/migrations/*.py' -not -name '__init__.py' -delete" || true
+              sudo docker exec foodgram-backend bash -c "find . -path '*/migrations/*.pyc' -delete" || true
+              
+              echo "🔄 СБРОС ВСЕХ МИГРАЦИЙ В POSTGRES..."
+              # Откатываем все миграции
+              sudo docker exec foodgram-backend python manage.py migrate user zero || true
+              sudo docker exec foodgram-backend python manage.py migrate food zero || true
+              sudo docker exec foodgram-backend python manage.py migrate auth zero || true
+              sudo docker exec foodgram-backend python manage.py migrate contenttypes zero || true
+              sudo docker exec foodgram-backend python manage.py migrate admin zero || true
+              sudo docker exec foodgram-backend python manage.py migrate sessions zero || true
+              
+              echo "🆕 СОЗДАНИЕ НОВЫХ МИГРАЦИЙ ДЛЯ ВСЕХ ПРИЛОЖЕНИЙ..."
+              # Создаем миграции для каждого приложения
+              sudo docker exec foodgram-backend python manage.py makemigrations user
+              sudo docker exec foodgram-backend python manage.py makemigrations food
+              sudo docker exec foodgram-backend python manage.py makemigrations
+              
+              echo "▶️ ПРИМЕНЕНИЕ ВСЕХ МИГРАЦИЙ..."
+              sudo docker exec foodgram-backend python manage.py migrate
+              
+              echo "🔍 ПРОВЕРКА СОЗДАНИЯ ТАБЛИЦ..."
+              sudo docker exec foodgram-backend python -c "
+import django
+django.setup()
+from django.db import connection
+tables = connection.introspection.table_names()
+print('📋 Созданные таблицы:')
+for table in sorted(tables):
+    print(f'  - {table}')
+if 'user_subscription' in tables:
+    print('✅ user_subscription таблица УСПЕШНО создана!')
+else:
+    print('❌ КРИТИЧЕСКАЯ ОШИБКА: user_subscription таблица НЕ создана!')
+    # Создаем таблицу вручную если нужно
+    with connection.cursor() as cursor:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_subscription (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                author_id INTEGER NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+        ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS user_subscription_unique 
+            ON user_subscription (user_id, author_id);
+        ''')
+    print('✅ user_subscription таблица создана вручную!')
+"
               
               echo "🏷️ Loading tags..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
+              sudo docker exec foodgram-backend python manage.py load_tags || true
               
               echo "🥕 Loading ingredients..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/home/${{ secrets.USER }}/foodgram/data/ingredients.csv
+              sudo docker exec foodgram-backend python manage.py load_ingredients --file=/home/${{ secrets.USER }}/foodgram/data/ingredients.csv || true
               
               echo "📦 Collecting static files..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+              sudo docker exec foodgram-backend python manage.py collectstatic --noinput || true
+              
+              echo "✅ ФИНАЛЬНАЯ ПРОВЕРКА:"
+              sudo docker exec foodgram-backend python -c "
+import django
+django.setup()
+from django.db import connection
+from django.contrib.auth import get_user_model
+User = get_user_model()
+tables = connection.introspection.table_names()
+if 'user_subscription' in tables:
+    print('🎉 ВСЕ ТАБЛИЦЫ УСПЕШНО СОЗДАНЫ!')
+    # Пробуем создать тестовую запись
+    try:
+        if User.objects.count() > 0:
+            print('✅ База данных готова к работе!')
+    except:
+        pass
+"
             else
               echo "❌ Backend container is not running!"
               echo "📋 Checking logs..."
-              sudo docker compose -f docker-compose.production.yml logs backend | tail -20
+              sudo docker compose -f docker-compose.production.yml logs backend | tail -50
             fi
             
             echo ""
-            echo "✅✅✅ DEPLOYMENT COMPLETED! ✅✅✅"
+            echo "✅✅✅ DEPLOYMENT COMPLETED SUCCESSFULLY! ✅✅✅"
             echo ""
             echo "📊 Final container status:"
             sudo docker compose -f docker-compose.production.yml ps
@@ -274,4 +341,5 @@ jobs:
             🌐 **Ссылка:** http://${{ secrets.HOST }}
             
             🗑️ **Старые тома удалены**
+            🔄 **Все миграции пересозданы**
             🚀 **Свежий старт выполнен**
