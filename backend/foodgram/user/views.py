@@ -9,6 +9,7 @@ from food.models import Recipe
 from food.serializers import RecipeMinifiedSerializer
 from user.models import Subscription
 from .serializers import UserSerializer, CustomUserCreateSerializer, SetAvatarSerializer, SetAvatarResponseSerializer, SetPasswordSerializer
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
