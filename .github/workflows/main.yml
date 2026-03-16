@@ -144,7 +144,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         
-      - name: Create directories on server
+      - name: Create directories + fix permissions
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -155,43 +155,48 @@ jobs:
             mkdir -p /home/${{ secrets.USER }}/foodgram/infra
             mkdir -p /home/${{ secrets.USER }}/foodgram/data
             sudo chown -R ${{ secrets.USER }}:${{ secrets.USER }} /home/${{ secrets.USER }}/foodgram
+            ls -la /home/${{ secrets.USER }}/foodgram
+            echo "✅ Директории созданы и права исправлены"
             
       - name: Copy docker-compose.production.yml
-        uses: appleboy/scp-action@master
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "infra/docker-compose.production.yml"
-          target: "/home/${{ secrets.USER }}/foodgram/infra/"
-          strip_components: 1
-          overwrite: true
+          script: |
+            cat > /home/${{ secrets.USER }}/foodgram/infra/docker-compose.production.yml << 'EOF'
+            ${{ secrets.DOCKER_COMPOSE_CONTENT }}   # ← ВНИМАНИЕ: см. ниже
+            EOF
+            echo "✅ docker-compose скопирован"
             
       - name: Copy nginx.conf
-        uses: appleboy/scp-action@master
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "infra/nginx.conf"
-          target: "/home/${{ secrets.USER }}/foodgram/infra/"
-          strip_components: 1
-          overwrite: true
+          script: |
+            cat > /home/${{ secrets.USER }}/foodgram/infra/nginx.conf << 'EOF'
+            ${{ secrets.NGINX_CONF_CONTENT }}
+            EOF
+            echo "✅ nginx.conf скопирован"
             
       - name: Copy ingredients.csv
-        uses: appleboy/scp-action@master
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "data/ingredients.csv"
-          target: "/home/${{ secrets.USER }}/foodgram/data/"
-          strip_components: 1
-          overwrite: true
-          
+          script: |
+            cat > /home/${{ secrets.USER }}/foodgram/data/ingredients.csv << 'EOF'
+            ${{ secrets.INGREDIENTS_CSV_CONTENT }}
+            EOF
+            echo "✅ ingredients.csv скопирован"
+            
       - name: Deploy
         uses: appleboy/ssh-action@master
         with:
@@ -202,29 +207,27 @@ jobs:
           script: |
             cd /home/${{ secrets.USER }}/foodgram/infra
             
-            echo "Pulling fresh images..."
+            echo "🐳 Pulling images..."
             sudo docker compose -f docker-compose.production.yml pull
             
-            echo "Creating .env file..."
+            echo "Creating .env..."
             cat > .env << EOF
             POSTGRES_USER=foodgram_user
             POSTGRES_PASSWORD=foodgram_password
             POSTGRES_DB=foodgram
             DB_NAME=foodgram
-            DB_USER=foodgram_user 
+            DB_USER=foodgram_user
             DB_PASSWORD=foodgram_password
             DB_HOST=db
             DB_PORT=5432
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DEBUG=False
             ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1
-            DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
             EOF
             
             echo "Starting containers..."
             sudo docker compose -f docker-compose.production.yml up -d --force-recreate
             
-            echo "Waiting for services..."
             sleep 15
             
             echo "Running migrations..."
@@ -233,8 +236,8 @@ jobs:
             echo "Loading ingredients..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/data/ingredients.csv
             
-            echo "Collecting static files..."
+            echo "Collecting static..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
             
-            echo "✅ DEPLOYMENT COMPLETED SUCCESSFULLY!"
+            echo "✅ DEPLOY COMPLETED!"
             sudo docker compose -f docker-compose.production.yml ps
