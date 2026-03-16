@@ -33,29 +33,6 @@ jobs:
           pip install flake8==6.0.0
           pip install black==23.3.0
           pip install -r ./backend/foodgram/requirements.txt
-          
-    #   - name: Test with flake8
-    #     env:
-    #       POSTGRES_USER: foodgram_user
-    #       POSTGRES_PASSWORD: foodgram_password
-    #       POSTGRES_DB: foodgram
-    #       DB_HOST: 127.0.0.1
-    #       DB_PORT: 5432
-    #     run: |
-    #       python -m flake8 backend/foodgram/
-          
-    #   - name: Test with Django tests
-    #     env:
-    #       POSTGRES_USER: foodgram_user
-    #       POSTGRES_PASSWORD: foodgram_password
-    #       POSTGRES_DB: foodgram
-    #       DB_HOST: 127.0.0.1
-    #       DB_PORT: 5432
-    #       SECRET_KEY: test-secret-key
-    #       DEBUG: 'True'
-    #     run: |
-    #       cd backend/foodgram/
-    #       python manage.py test
 
   build_backend_and_push_to_docker_hub:
     name: Push backend Docker image to DockerHub
@@ -162,13 +139,6 @@ jobs:
             sudo chown -R ${{ secrets.USER }}:${{ secrets.USER }} /home/${{ secrets.USER }}/foodgram
             echo "✅ Directories created"
             
-      - name: Show local files (debug)
-        run: |
-          echo "Current directory: $(pwd)"
-          ls -la
-          echo "Data folder content:"
-          ls -la data/ || echo "Data folder not found"
-          
       - name: Copy docker-compose.production.yml
         uses: appleboy/scp-action@master
         with:
@@ -204,51 +174,11 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "data/ingredients.csv"
           target: "/home/${{ secrets.USER }}/foodgram/data/"
-          strip_components: 1  # Важно: 1 убирает 'data/' из пути
+          strip_components: 1
           rm: false
           overwrite: true
-          debug: true  # Добавим для отладки
           
-      - name: Copy docs folder (if exists)
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USER }}
-          key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "docs/"
-          target: "/home/${{ secrets.USER }}/foodgram/docs/"
-          strip_components: 0
-          rm: false
-          overwrite: true
-        continue-on-error: true
-        
-      - name: Verify files on server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USER }}
-          key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: |
-            echo "📁 Checking copied files:"
-            echo ""
-            echo "=== INFRA FOLDER ==="
-            ls -la /home/${{ secrets.USER }}/foodgram/infra/
-            echo ""
-            echo "=== DATA FOLDER ==="
-            ls -la /home/${{ secrets.USER }}/foodgram/data/
-            echo ""
-            echo "=== INGREDIENTS FILE ==="
-            if [ -f /home/${{ secrets.USER }}/foodgram/data/ingredients.csv ]; then
-              echo "✅ ingredients.csv exists"
-              echo "First 5 lines:"
-              head -5 /home/${{ secrets.USER }}/foodgram/data/ingredients.csv
-            else
-              echo "❌ ingredients.csv NOT FOUND!"
-            fi
-            
-      - name: Create .env file
+      - name: Deploy with docker compose - clean start with volume removal
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -257,57 +187,71 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
             cd /home/${{ secrets.USER }}/foodgram/infra
-            echo "DB_NAME=${{ secrets.DB_NAME }}" > .env
-            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-            echo "DB_HOST=db" >> .env
-            echo "DB_PORT=5432" >> .env
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
-            echo "DEBUG=False" >> .env
-            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
-            echo "ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1" >> .env
+            
+            echo "🧹 Cleaning up old containers and volumes..."
+            
+            # Останавливаем и удаляем ВСЕ старые контейнеры и ТОМА
+            sudo docker compose -f docker-compose.production.yml down -v
+            
+            # Удаляем все неиспользуемые тома для очистки
+            sudo docker volume prune -f
+            
+            echo "🐳 Pulling fresh Docker images..."
+            sudo docker compose -f docker-compose.production.yml pull
+            
+            echo "📝 Creating complete .env file (with PostgreSQL variables)..."
+            cat > .env << EOF
+# PostgreSQL credentials
+POSTGRES_USER=foodgram_user
+POSTGRES_PASSWORD=foodgram_password
+POSTGRES_DB=foodgram
+
+# Django database settings
+DB_NAME=foodgram
+DB_USER=foodgram_user
+DB_PASSWORD=foodgram_password
+DB_HOST=db
+DB_PORT=5432
+
+# Django settings
+SECRET_KEY=${{ secrets.SECRET_KEY }}
+DEBUG=False
+ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1,158.160.31.143
+
+# Docker
+DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+EOF
+
             echo "✅ .env file created:"
             cat .env | grep -v PASSWORD | grep -v KEY
             
-      - name: Deploy with docker compose
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USER }}
-          key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: |
-            cd /home/${{ secrets.USER }}/foodgram/infra
-            
-            echo "🐳 Pulling Docker images..."
-            sudo docker compose -f docker-compose.production.yml pull
-            
-            echo "🛑 Stopping old containers..."
-            sudo docker compose -f docker-compose.production.yml down
-            
-            echo "🚀 Starting new containers..."
+            echo "🚀 Starting fresh containers..."
             sudo docker compose -f docker-compose.production.yml up -d
             
-            echo "⏳ Waiting for containers to start..."
-            sleep 15
+            echo "⏳ Waiting for database to be ready (30 seconds)..."
+            sleep 30
             
             echo "📊 Container status:"
             sudo docker compose -f docker-compose.production.yml ps
             
-            echo "🗄️ Running database migrations..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
+            # Проверяем, запустилась ли база данных
+            echo "🔍 Checking database logs:"
+            sudo docker compose -f docker-compose.production.yml logs db | tail -20
             
-            echo "🗄️ Running database migrations..."
+            echo "🗄️ Running database migrations from scratch..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations food
-
-            echo "🗄️ Running database migrations..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            
+            # Проверяем наличие таблиц
+            echo "🔍 Checking database tables:"
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py dbshell -c "\dt"
             
             echo "🏷️ Loading tags..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
             
-            echo "🥕 Loading ingredients from data folder..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=data/ingredients.csv
+            echo "🥕 Loading ingredients..."
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/home/${{ secrets.USER }}/foodgram/data/ingredients.csv
             
             echo "📦 Collecting static files..."
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
@@ -317,6 +261,8 @@ jobs:
             echo ""
             echo "📊 Final container status:"
             sudo docker compose -f docker-compose.production.yml ps
+            echo ""
+            echo "🌐 Site should be available at: http://${{ secrets.HOST }}"
 
   send_message:
     runs-on: ubuntu-latest
@@ -335,8 +281,8 @@ jobs:
             📦 **Репозиторий:** ${{ github.repository }}
             🔍 **Коммит:** ${{ github.sha }}
             👤 **Автор:** ${{ github.actor }}
-            📅 **Дата:** ${{ github.event.head_commit.timestamp }}
             
             🌐 **Ссылка:** http://${{ secrets.HOST }}
             
-            🚀 **Статус:** Все сервисы запущены, данные загружены
+            🗑️ **Старые тома удалены**
+            🚀 **Свежий старт выполнен**
