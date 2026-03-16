@@ -6,52 +6,52 @@ on:
       - main
 
 jobs:
-  # tests:
-  #   runs-on: ubuntu-latest
-  #   services:
-  #     postgres:
-  #       image: postgres:15-alpine
-  #       env:
-  #         POSTGRES_USER: foodgram_user
-  #         POSTGRES_PASSWORD: foodgram_password
-  #         POSTGRES_DB: foodgram
-  #       ports:
-  #         - 5432:5432
-  #       options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: foodgram_user
+          POSTGRES_PASSWORD: foodgram_password
+          POSTGRES_DB: foodgram
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     
-  #   steps:
-  #     - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
       
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: 3.11
+      # - name: Set up Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: 3.11
           
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install -r ./backend/foodgram/requirements.txt
+      # - name: Install dependencies
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     pip install -r ./backend/foodgram/requirements.txt
           
-  #     - name: Run flake8
-  #       run: |
-  #         pip install flake8==6.0.0
-  #         flake8 ./backend/foodgram --exclude=migrations,venv
+      # - name: Run flake8
+      #   run: |
+      #     pip install flake8==6.0.0
+      #     flake8 ./backend/foodgram --exclude=migrations,venv
       
-  #     - name: Run tests
-  #       env:
-  #         POSTGRES_USER: foodgram_user
-  #         POSTGRES_PASSWORD: foodgram_password
-  #         POSTGRES_DB: foodgram
-  #         DB_NAME: foodgram
-  #         DB_USER: foodgram_user
-  #         DB_PASSWORD: foodgram_password
-  #         DB_HOST: localhost
-  #         DB_PORT: 5432
-  #         SECRET_KEY: dummy_for_tests
-  #         DEBUG: True
-  #       run: |
-  #         cd ./backend/foodgram
-  #         python manage.py test
+      # - name: Run tests
+      #   env:
+      #     POSTGRES_USER: foodgram_user
+      #     POSTGRES_PASSWORD: foodgram_password
+      #     POSTGRES_DB: foodgram
+      #     DB_NAME: foodgram
+      #     DB_USER: foodgram_user
+      #     DB_PASSWORD: foodgram_password
+      #     DB_HOST: localhost
+      #     DB_PORT: 5432
+      #     SECRET_KEY: dummy_for_tests
+      #     DEBUG: True
+      #   run: |
+      #     cd ./backend/foodgram
+          # python manage.py test
 
   build_backend_and_push_to_docker_hub:
     name: Push backend Docker image to DockerHub
