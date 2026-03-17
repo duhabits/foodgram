@@ -83,54 +83,161 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_nginx:latest
 
   deploy:
-      name: Deploy to Server
-      runs-on: ubuntu-latest
-      needs:
-        - build_backend
-        - build_frontend
-        - build_nginx
-      if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: 
+      - build_backend_and_push_to_docker_hub
+      - build_frontend_and_push_to_docker_hub
+      - build_nginx_and_push_to_docker_hub
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        
+      - name: Create necessary directories on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            mkdir -p /home/${{ secrets.USER }}/foodgram/infra
+            mkdir -p /home/${{ secrets.USER }}/foodgram/data
+            mkdir -p /home/${{ secrets.USER }}/foodgram/docs
+            sudo chown -R ${{ secrets.USER }}:${{ secrets.USER }} /home/${{ secrets.USER }}/foodgram
+            echo "✅ Directories created"
+            
+      - name: Copy docker-compose.production.yml
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "infra/docker-compose.production.yml"
+          target: "/home/${{ secrets.USER }}/foodgram/infra/"
+          strip_components: 1
+          rm: false
+          overwrite: true
+            
+      - name: Copy nginx.conf
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "infra/nginx.conf"
+          target: "/home/${{ secrets.USER }}/foodgram/infra/"
+          strip_components: 1
+          rm: false
+          overwrite: true
+            
+      - name: Copy ingredients.csv
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "data/ingredients.csv"
+          target: "/home/${{ secrets.USER }}/foodgram/data/"
+          strip_components: 1
+          rm: false
+          overwrite: true
+          
+      - name: Deploy with docker compose - clean start
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            cd /home/${{ secrets.USER }}/foodgram/infra
+            
+            echo "🧹 Cleaning up old containers and volumes..."
+            sudo docker compose -f docker-compose.production.yml down -v
+            sudo docker volume prune -f
+            
+            echo "🐳 Pulling fresh Docker images..."
+            sudo docker compose -f docker-compose.production.yml pull
+            
+            echo "📝 Creating .env file..."
+            rm -f .env
+            echo "POSTGRES_USER=foodgram_user" > .env
+            echo "POSTGRES_PASSWORD=foodgram_password" >> .env
+            echo "POSTGRES_DB=foodgram" >> .env
+            echo "DB_NAME=foodgram" >> .env
+            echo "DB_USER=foodgram_user" >> .env
+            echo "DB_PASSWORD=foodgram_password" >> .env
+            echo "DB_HOST=db" >> .env
+            echo "DB_PORT=5432" >> .env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+            echo "DEBUG=False" >> .env
+            echo "ALLOWED_HOSTS=${{ secrets.HOST }},localhost,127.0.0.1" >> .env
+            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+            
+            echo "✅ .env file created"
+            echo "📄 First line of .env:"
+            head -1 .env
+            
+            echo "🚀 Starting fresh containers..."
+            sudo docker compose -f docker-compose.production.yml up -d
+            
+            echo "⏳ Waiting for database to be ready (30 seconds)..."
+            sleep 30
+            
+            echo "📊 Container status:"
+            sudo docker compose -f docker-compose.production.yml ps
+            
+            # Проверяем, запустился ли backend
+            if sudo docker compose -f docker-compose.production.yml ps | grep -q "backend.*Up"; then
+              echo "🗄️ Running database migrations..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations user
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py makemigrations food
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+              
+              echo "🏷️ Loading tags..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags
+              
+              echo "🥕 Loading ingredients..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/home/${{ secrets.USER }}/foodgram/data/ingredients.csv
+              
+              echo "📦 Collecting static files..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            else
+              echo "❌ Backend container is not running!"
+              echo "📋 Checking logs..."
+              sudo docker compose -f docker-compose.production.yml logs backend | tail -20
+            fi
+            
+            echo ""
+            echo "✅✅✅ DEPLOYMENT COMPLETED! ✅✅✅"
+            echo ""
+            echo "📊 Final container status:"
+            sudo docker compose -f docker-compose.production.yml ps
 
-      steps:
-        - uses: actions/checkout@v4
-
-        - name: Deploy to production server
-          uses: appleboy/ssh-action@v1.0.3
-          with:
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USER }}
-            key: ${{ secrets.SSH_KEY }}
-            passphrase: ${{ secrets.SSH_PASSPHRASE }}
-            script: |
-              cd /home/${{ secrets.USER }}/foodgram/infra || exit 1
-
-              echo "→ Pulling latest images ..."
-              sudo docker compose -f docker-compose.production.yml pull
-
-              echo "→ (Re)creating containers ..."
-              sudo docker compose -f docker-compose.production.yml up -d --force-recreate --remove-orphans
-
-              echo "→ Waiting for services to start (20 sec) ..."
-              sleep 20
-
-              echo "→ Checking container status ..."
-              sudo docker compose -f docker-compose.production.yml ps
-
-              echo "→ Running migrations (only migrate — no makemigrations) ..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate --noinput
-
-              echo "→ Loading static tags (if command exists) ..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags || echo "→ load_tags skipped (command not found or already loaded)"
-
-              echo "→ Loading ingredients from mounted file ..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/data/ingredients.csv || echo "→ load_ingredients failed — check path or command"
-
-              echo "→ Collecting static files ..."
-              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput --clear
-
-              echo ""
-              echo "──────────────────────────────────────────────"
-              echo "             DEPLOY FINISHED"
-              echo "──────────────────────────────────────────────"
-              echo ""
-              sudo docker compose -f docker-compose.production.yml ps
+  send_message:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Send message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ **Деплой Foodgram успешно выполнен!**
+            
+            📦 **Репозиторий:** ${{ github.repository }}
+            🔍 **Коммит:** ${{ github.sha }}
+            👤 **Автор:** ${{ github.actor }}
+            
+            🌐 **Ссылка:** http://${{ secrets.HOST }}
+            
+            🗑️ **Старые тома удалены**
+            🚀 **Свежий старт выполнен**
