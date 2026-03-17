@@ -103,7 +103,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe=recipe,
             defaults={'code': ShortLink.generate_unique_code(length=MAX_LENGTH_SHORT_CODE)}
         )
-        return Response({'short-link': f'/recipes/{recipe.id}/'})
+        full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
+        return Response({'short-link': full_url})
 
     @action(detail=False, methods=('get',), permission_classes=(permissions.IsAuthenticated,))
     def download_shopping_cart(self, request):

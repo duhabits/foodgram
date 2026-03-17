@@ -23,23 +23,27 @@ router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Основной API-роутер (все ресурсы через ViewSet)
     path('api/', include(router.urls)),
+
+    # Djoser — регистрация, токены, me, set_password и т.д.
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
 
-    # Подписки
+    # Подписки (список и действие подписки/отписки)
     path(
         'api/users/subscriptions/',
         SubscriptionViewSet.as_view({'get': 'list'}),
-        name='subscriptions'
+        name='subscriptions-list',
     ),
     path(
         'api/users/<int:pk>/subscribe/',
         SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}),
-        name='subscribe'
+        name='user-subscribe',
     ),
 
-    # Короткие ссылки
+    # Короткие ссылки на рецепты
     path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
 ]
 
