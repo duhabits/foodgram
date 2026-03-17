@@ -13,6 +13,8 @@ from food.views import (
 from user.views import (
     UserViewSet,
     SubscriptionViewSet,
+    avatar_view,
+    set_password,
 )
 
 router = DefaultRouter()
@@ -27,7 +29,7 @@ urlpatterns = [
     # Основной API-роутер (все ресурсы через ViewSet)
     path('api/', include(router.urls)),
 
-    # Djoser — регистрация, токены, me, set_password и т.д.
+    # Djoser — регистрация, токены, me и базовые эндпоинты
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
 
@@ -35,13 +37,17 @@ urlpatterns = [
     path(
         'api/users/subscriptions/',
         SubscriptionViewSet.as_view({'get': 'list'}),
-        name='subscriptions-list',
+        name='subscriptions',
     ),
     path(
         'api/users/<int:pk>/subscribe/',
         SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}),
-        name='user-subscribe',
+        name='subscribe',
     ),
+
+    # Кастомные эндпоинты из user/views.py
+    path('api/users/me/avatar/', avatar_view, name='user-avatar'),
+    path('api/users/set_password/', set_password, name='set-password'),
 
     # Короткие ссылки на рецепты
     path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
