@@ -1,4 +1,4 @@
-name: Foodgram CI/CD
+name: Foodgram workflow
 
 on:
   push:
@@ -6,134 +6,131 @@ on:
       - main
 
 jobs:
-  build_backend:
-    name: Build & Push Backend
+  build_backend_and_push_to_docker_hub:
+    name: Push backend Docker image to DockerHub
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push backend
-        uses: docker/build-push-action@v6
+          
+      - name: Push backend to DockerHub
+        uses: docker/build-push-action@v4
         with:
           context: ./backend/foodgram
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-  build_frontend:
-    name: Build & Push Frontend
+  build_frontend_and_push_to_docker_hub:
+    name: Push frontend Docker image to DockerHub
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v6
+          
+      - name: Push frontend to DockerHub
+        uses: docker/build-push-action@v4
         with:
           context: ./frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-  build_nginx:
-    name: Build & Push Nginx
+  build_nginx_and_push_to_docker_hub:
+    name: Push nginx Docker image to DockerHub
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push nginx
-        uses: docker/build-push-action@v6
+          
+      - name: Push nginx to DockerHub
+        uses: docker/build-push-action@v4
         with:
           context: ./infra
-          file: ./infra/Dockerfile.nginx
+          dockerfile: Dockerfile.nginx
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_nginx:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy to Server
-    runs-on: ubuntu-latest
-    needs:
-      - build_backend
-      - build_frontend
-      - build_nginx
-    if: github.ref == 'refs/heads/main'
+      name: Deploy to Server
+      runs-on: ubuntu-latest
+      needs:
+        - build_backend
+        - build_frontend
+        - build_nginx
+      if: github.ref == 'refs/heads/main'
 
-    steps:
-      - uses: actions/checkout@v4
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Deploy to production server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USER }}
-          key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: |
-            cd /home/${{ secrets.USER }}/foodgram/infra || exit 1
+        - name: Deploy to production server
+          uses: appleboy/ssh-action@v1.0.3
+          with:
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USER }}
+            key: ${{ secrets.SSH_KEY }}
+            passphrase: ${{ secrets.SSH_PASSPHRASE }}
+            script: |
+              cd /home/${{ secrets.USER }}/foodgram/infra || exit 1
 
-            echo "→ Pulling latest images ..."
-            sudo docker compose -f docker-compose.production.yml pull
+              echo "→ Pulling latest images ..."
+              sudo docker compose -f docker-compose.production.yml pull
 
-            echo "→ (Re)creating containers ..."
-            sudo docker compose -f docker-compose.production.yml up -d --force-recreate --remove-orphans
+              echo "→ (Re)creating containers ..."
+              sudo docker compose -f docker-compose.production.yml up -d --force-recreate --remove-orphans
 
-            echo "→ Waiting for services to start (20 sec) ..."
-            sleep 20
+              echo "→ Waiting for services to start (20 sec) ..."
+              sleep 20
 
-            echo "→ Checking container status ..."
-            sudo docker compose -f docker-compose.production.yml ps
+              echo "→ Checking container status ..."
+              sudo docker compose -f docker-compose.production.yml ps
 
-            echo "→ Running migrations (only migrate — no makemigrations) ..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate --noinput
+              echo "→ Running migrations (only migrate — no makemigrations) ..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate --noinput
 
-            echo "→ Loading static tags (if command exists) ..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags || echo "→ load_tags skipped (command not found or already loaded)"
+              echo "→ Loading static tags (if command exists) ..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_tags || echo "→ load_tags skipped (command not found or already loaded)"
 
-            echo "→ Loading ingredients from mounted file ..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/data/ingredients.csv || echo "→ load_ingredients failed — check path or command"
+              echo "→ Loading ingredients from mounted file ..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py load_ingredients --file=/data/ingredients.csv || echo "→ load_ingredients failed — check path or command"
 
-            echo "→ Collecting static files ..."
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput --clear
+              echo "→ Collecting static files ..."
+              sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput --clear
 
-            echo ""
-            echo "──────────────────────────────────────────────"
-            echo "             DEPLOY FINISHED"
-            echo "──────────────────────────────────────────────"
-            echo ""
-            sudo docker compose -f docker-compose.production.yml ps
+              echo ""
+              echo "──────────────────────────────────────────────"
+              echo "             DEPLOY FINISHED"
+              echo "──────────────────────────────────────────────"
+              echo ""
+              sudo docker compose -f docker-compose.production.yml ps
