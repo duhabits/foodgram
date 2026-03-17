@@ -3,7 +3,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from django.views.generic import RedirectView
 
 from food.views import (
     TagViewSet,
@@ -26,34 +25,22 @@ router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
     path('api/', include(router.urls)),
-
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.authtoken')),
-
-    # Подписки
     path(
         'api/users/subscriptions/',
         SubscriptionViewSet.as_view({'get': 'list'}),
-        name='subscriptions',
+        name='subscriptions'
     ),
     path(
         'api/users/<int:pk>/subscribe/',
         SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}),
-        name='subscribe',
+        name='subscribe'
     ),
-
-    # Аватар и смена пароля (твои кастомные вью)
     path('api/users/me/avatar/', avatar_view, name='user-avatar'),
     path('api/users/set_password/', set_password, name='set-password'),
-
-    # Короткие ссылки
     path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
-
-    # ← Это главная строка, которая решает проблему 405
-    # Фронт стучится на /api/users/, а мы перенаправляем на правильный путь Djoser
-    path('api/users/', RedirectView.as_view(url='/api/auth/users/', permanent=False)),
 ]
 
 if settings.DEBUG:
