@@ -2,14 +2,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 
 from food.models import Recipe
 from food.serializers import RecipeMinifiedSerializer
+from food.pagination import StandardResultsSetPagination
 from .models import Subscription
 from .serializers import UserSerializer
-from .pagination import StandardResultsSetPagination
 
 User = get_user_model()
 
