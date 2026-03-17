@@ -45,7 +45,7 @@ urlpatterns = [
         name='subscribe',
     ),
 
-    # Кастомные эндпоинты из user/views.py
+    # Кастомные эндпоинты для аватара и смены пароля
     path('api/users/me/avatar/', avatar_view, name='user-avatar'),
     path('api/users/set_password/', set_password, name='set-password'),
 
