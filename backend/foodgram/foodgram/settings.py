@@ -9,7 +9,7 @@ SECRET_KEY = (
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Для разработки, в продакшне заменить на конкретные
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -23,7 +23,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'djoser',
-    'django_filters',  # Добавить в requirements.txt
+    'django_filters',
     # Local apps
     'food.apps.FoodConfig',
     'user.apps.UserConfig',
@@ -84,7 +84,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Internationalization
-LANGUAGE_CODE = 'ru-ru'  # Изменено на русский
+LANGUAGE_CODE = 'ru-ru'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_L10N = True
@@ -100,8 +100,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ==================== ИСПРАВЛЕНО ====================
 # Custom user model
-AUTH_USER_MODEL = 'user.MyUser'
+AUTH_USER_MODEL = 'user.User'                    # ← было MyUser
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -124,7 +125,7 @@ DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SERIALIZERS': {
-        'user_create': 'user.serializers.CustomUserCreateSerializer',
+        'user_create': 'user.serializers.UserCreateSerializer',   # ← было CustomUserCreateSerializer
         'user': 'user.serializers.UserSerializer',
         'current_user': 'user.serializers.UserSerializer',
     },
