@@ -2,12 +2,16 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.exceptions import ValidationError
 
+from food.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_LAST_NAME, MAX_LENGTH_USERNAME
 
-class MyUser(AbstractUser):
-    """Кастомная модель пользователя"""
+
+class User(AbstractUser):
+    """Кастомная модель пользователя."""
 
     email = models.EmailField(
-        max_length=254, unique=True, verbose_name='Email'
+        max_length=MAX_LENGTH_EMAIL,
+        unique=True,
+        verbose_name='Email',
     )
     avatar = models.ImageField(
         upload_to='users/avatars/',
@@ -29,12 +33,19 @@ class MyUser(AbstractUser):
 
 
 class Subscription(models.Model):
-    """Подписки на авторов"""
+    """Подписки на авторов."""
+
     user = models.ForeignKey(
-        MyUser, on_delete=models.CASCADE, related_name='subscriptions'
+        User,
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
+        verbose_name='Подписчик',
     )
     author = models.ForeignKey(
-        MyUser, on_delete=models.CASCADE, related_name='subscribers'
+        User,
+        on_delete=models.CASCADE,
+        related_name='subscribers',
+        verbose_name='Автор',
     )
 
     class Meta:
@@ -42,17 +53,18 @@ class Subscription(models.Model):
         verbose_name_plural = 'Подписки'
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'author'], name='unique_subscription'
+                fields=['user', 'author'],
+                name='unique_subscription',
             )
         ]
 
     def clean(self):
         if self.user == self.author:
-            raise ValidationError("Нельзя подписаться на самого себя")
+            raise ValidationError('Нельзя подписаться на самого себя.')
 
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user.username} -> {self.author.username}"
+        return f'{self.user.username} → {self.author.username}'
