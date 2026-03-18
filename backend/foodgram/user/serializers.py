@@ -1,13 +1,18 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from djoser.serializers import UserCreateSerializer
-from food.fields import Base64ImageField  # ВАЖНО: импортируем из food.fields
+from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
+from food.fields import Base64ImageField
+from food.constants import (
+    MAX_LENGTH_EMAIL,
+    MAX_LENGTH_USERNAME,
+    MAX_LENGTH_FIRST_LAST_NAME,
+)
 
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Сериализатор пользователя"""
+    """Сериализатор пользователя."""
 
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
@@ -36,10 +41,10 @@ class UserSerializer(serializers.ModelSerializer):
         return None
 
 
-class CustomUserCreateSerializer(UserCreateSerializer):
-    """Сериализатор создания пользователя"""
+class UserCreateSerializer(DjoserUserCreateSerializer):
+    """Сериализатор создания пользователя."""
 
-    class Meta(UserCreateSerializer.Meta):
+    class Meta(DjoserUserCreateSerializer.Meta):
         model = User
         fields = (
             'id',
@@ -52,41 +57,19 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
 
 class SetAvatarSerializer(serializers.Serializer):
-    """Сериализатор установки аватара"""
+    """Сериализатор установки аватара."""
+
     avatar = Base64ImageField(required=True)
 
 
 class SetAvatarResponseSerializer(serializers.Serializer):
-    """Сериализатор ответа с аватаром"""
+    """Сериализатор ответа с аватаром."""
+
     avatar = serializers.CharField(source='avatar.url', read_only=True)
 
 
 class SetPasswordSerializer(serializers.Serializer):
-    """Сериализатор смены пароля"""
+    """Сериализатор смены пароля."""
+
     current_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
-
-
-# ===== СЕРИАЛИЗАТОРЫ ОШИБОК =====
-
-class ValidationErrorSerializer(serializers.Serializer):
-    """Сериализатор для ошибок валидации"""
-    field_name = serializers.ListField(
-        child=serializers.CharField(),
-        required=False
-    )
-
-
-class AuthenticationErrorSerializer(serializers.Serializer):
-    """Сериализатор для ошибок аутентификации"""
-    detail = serializers.CharField()
-
-
-class PermissionDeniedSerializer(serializers.Serializer):
-    """Сериализатор для ошибок доступа"""
-    detail = serializers.CharField()
-
-
-class NotFoundSerializer(serializers.Serializer):
-    """Сериализатор для ошибок 404"""
-    detail = serializers.CharField()
