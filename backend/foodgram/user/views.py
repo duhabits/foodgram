@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
 
@@ -11,22 +10,19 @@ from food.serializers import RecipeMinifiedSerializer
 from .models import Subscription
 from .serializers import (
     UserSerializer,
-    CustomUserCreateSerializer,
+    UserCreateSerializer,          # ← исправлено
     SetAvatarSerializer,
     SetAvatarResponseSerializer,
     SetPasswordSerializer,
 )
+from food.pagination import StandardResultsSetPagination
 
 User = get_user_model()
 
 
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 6
-    page_size_query_param = 'limit'
-    max_page_size = 100
-
-
 class UserViewSet(DjoserUserViewSet):
+    """Вьюсет пользователей (только Djoser + переопределение)."""
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
@@ -34,11 +30,13 @@ class UserViewSet(DjoserUserViewSet):
 
     def get_serializer_class(self):
         if self.action == 'create':
-            return CustomUserCreateSerializer
+            return UserCreateSerializer      # ← исправлено
         return UserSerializer
 
 
 class SubscriptionViewSet(viewsets.GenericViewSet):
+    """Вьюсет подписок."""
+
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
     permission_classes = [permissions.IsAuthenticated]
@@ -56,7 +54,9 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             recipes_limit = request.query_params.get('recipes_limit')
             if recipes_limit:
                 recipes = recipes[:int(recipes_limit)]
-            item['recipes'] = RecipeMinifiedSerializer(recipes, many=True, context={'request': request}).data
+            item['recipes'] = RecipeMinifiedSerializer(
+                recipes, many=True, context={'request': request}
+            ).data
             item['recipes_count'] = Recipe.objects.filter(author=user).count()
             result_data.append(item)
         return self.get_paginated_response(result_data)
@@ -67,7 +67,7 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
         user = request.user
         if request.method == 'POST':
             if user == author:
-                return Response({'errors': 'Нельзя подписаться на самого себя'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'errors': 'Нельзя подписаться на самого себя.'}, status=status.HTTP_400_BAD_REQUEST)
             Subscription.objects.get_or_create(user=user, author=author)
             serializer = UserSerializer(author, context={'request': request})
             data = serializer.data
@@ -75,12 +75,14 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
             recipes_limit = request.query_params.get('recipes_limit')
             if recipes_limit:
                 recipes = recipes[:int(recipes_limit)]
-            data['recipes'] = RecipeMinifiedSerializer(recipes, many=True, context={'request': request}).data
+            data['recipes'] = RecipeMinifiedSerializer(
+                recipes, many=True, context={'request': request}
+            ).data
             data['recipes_count'] = Recipe.objects.filter(author=author).count()
             return Response(data, status=status.HTTP_201_CREATED)
         deleted = Subscription.objects.filter(user=user, author=author).delete()[0]
         if not deleted:
-            return Response({'errors': 'Вы не были подписаны на этого пользователя'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'errors': 'Вы не были подписаны на этого пользователя.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -112,7 +114,7 @@ def set_password(request):
     serializer.is_valid(raise_exception=True)
     user = request.user
     if not user.check_password(serializer.validated_data['current_password']):
-        return Response({'current_password': ['Неверный пароль']}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'current_password': ['Неверный пароль.']}, status=status.HTTP_400_BAD_REQUEST)
     user.set_password(serializer.validated_data['new_password'])
     user.save()
     return Response(status=status.HTTP_204_NO_CONTENT)
