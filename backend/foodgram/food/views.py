@@ -2,13 +2,15 @@ import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from django.http import FileResponse, HttpResponseRedirect, HttpResponseNotFound
+from django.http import FileResponse, HttpResponseRedirect
+from django.http import HttpResponseNotFound
 from django.db.models import Sum
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Recipe, Tag, Ingredient, Favorite, ShoppingCart, RecipeIngredient, ShortLink
+from .models import Recipe, Tag, Ingredient, Favorite
+from .models import ShoppingCart, RecipeIngredient, ShortLink
 from .serializers import (
     RecipeListSerializer,
     TagSerializer,
@@ -65,35 +67,80 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        full_serializer = RecipeListSerializer(serializer.instance, context={'request': request})
-        return Response(full_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        full_serializer = RecipeListSerializer(
+            serializer.instance,
+            context={'request': request}
+        )
+        return Response(
+            full_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
 
-    @action(detail=True, methods=('post', 'delete'), permission_classes=(permissions.IsAuthenticated,))
+    @action(
+        detail=True,
+        methods=('post', 'delete'),
+        permission_classes=(permissions.IsAuthenticated,)
+    )
     def favorite(self, request, pk=None):
         recipe = self.get_object()
         user = request.user
         if request.method == 'POST':
-            _, created = Favorite.objects.get_or_create(user=user, recipe=recipe)
+            _, created = Favorite.objects.get_or_create(
+                user=user,
+                recipe=recipe
+            )
             if not created:
-                return Response({'errors': 'Рецепт уже в избранном'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response(RecipeMinifiedSerializer(recipe).data, status=status.HTTP_201_CREATED)
-        count, _ = Favorite.objects.filter(user=user, recipe=recipe).delete()
+                return Response(
+                    {'errors': 'Рецепт уже в избранном'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                RecipeMinifiedSerializer(recipe).data,
+                status=status.HTTP_201_CREATED
+            )
+        count, _ = Favorite.objects.filter(
+            user=user,
+            recipe=recipe
+        ).delete()
         if count == 0:
-            return Response({'errors': 'Рецепта не было в избранном'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'errors': 'Рецепта не было в избранном'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=('post', 'delete'), permission_classes=(permissions.IsAuthenticated,))
+    @action(
+        detail=True,
+        methods=('post', 'delete'),
+        permission_classes=(permissions.IsAuthenticated,)
+    )
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
         user = request.user
         if request.method == 'POST':
-            _, created = ShoppingCart.objects.get_or_create(user=user, recipe=recipe)
+            _, created = ShoppingCart.objects.get_or_create(
+                user=user,
+                recipe=recipe
+            )
             if not created:
-                return Response({'errors': 'Рецепт уже в списке покупок'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response(RecipeMinifiedSerializer(recipe).data, status=status.HTTP_201_CREATED)
-        count, _ = ShoppingCart.objects.filter(user=user, recipe=recipe).delete()
+                return Response(
+                    {'errors': 'Рецепт уже в списке покупок'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                RecipeMinifiedSerializer(recipe).data,
+                status=status.HTTP_201_CREATED
+            )
+        count, _ = ShoppingCart.objects.filter(
+            user=user,
+            recipe=recipe
+        ).delete()
         if count == 0:
-            return Response({'errors': 'Рецепта не было в списке покупок'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'errors': 'Рецепта не было в списке покупок'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=('get',))
@@ -101,21 +148,33 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = self.get_object()
         short_link, _ = ShortLink.objects.get_or_create(
             recipe=recipe,
-            defaults={'code': ShortLink.generate_unique_code(length=MAX_LENGTH_SHORT_CODE)}
+            defaults={'code': ShortLink.generate_unique_code(
+                length=MAX_LENGTH_SHORT_CODE
+            )}
         )
         full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
         return Response({'short-link': full_url})
 
-    @action(detail=False, methods=('get',), permission_classes=(permissions.IsAuthenticated,))
+    @action(
+        detail=False,
+        methods=('get',),
+        permission_classes=(permissions.IsAuthenticated,)
+    )
     def download_shopping_cart(self, request):
         user = request.user
         recipes = Recipe.objects.filter(shopping_cart__user=user)
         if not recipes.exists():
-            return Response({'errors': 'Список покупок пуст'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'errors': 'Список покупок пуст'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         ingredients = (
             RecipeIngredient.objects.filter(recipe__in=recipes)
-            .values('ingredient__name', 'ingredient__measurement_unit')
+            .values(
+                'ingredient__name',
+                'ingredient__measurement_unit'
+            )
             .annotate(total_amount=Sum('amount'))
             .order_by('ingredient__name')
         )
@@ -133,7 +192,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if y < 30 * mm:
                 p.showPage()
                 y = h - 20 * mm
-            text = f"• {ing['ingredient__name']} — {ing['total_amount']} {ing['ingredient__measurement_unit']}"
+            text = (
+                f"• {ing['ingredient__name']} — "
+                f"{ing['total_amount']} "
+                f"{ing['ingredient__measurement_unit']}"
+            )
             p.drawString(30 * mm, y, text)
             y -= 10 * mm
 
