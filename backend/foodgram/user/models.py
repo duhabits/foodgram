@@ -3,12 +3,15 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
 
-from food.constants import MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_LAST_NAME, MAX_LENGTH_USERNAME
+from food.constants import (
+    MAX_LENGTH_EMAIL,
+    MAX_LENGTH_FIRST_LAST_NAME,
+    MAX_LENGTH_USERNAME,
+)
 
 
 class User(AbstractUser):
-    """Кастомная модель пользователя."""
-    
+
     username = models.CharField(
         max_length=MAX_LENGTH_USERNAME,
         unique=True,
@@ -22,7 +25,7 @@ class User(AbstractUser):
         max_length=MAX_LENGTH_FIRST_LAST_NAME,
         verbose_name='Фамилия',
     )
-    
+
     email = models.EmailField(
         max_length=MAX_LENGTH_EMAIL,
         unique=True,
@@ -48,7 +51,7 @@ class User(AbstractUser):
 
 
 class Subscription(models.Model):
-    """Подписки на авторов."""
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

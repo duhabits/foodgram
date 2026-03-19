@@ -1,19 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
-from food.fields import Base64ImageField
-from food.constants import (
-    MAX_LENGTH_EMAIL,
-    MAX_LENGTH_USERNAME,
-    MAX_LENGTH_FIRST_LAST_NAME,
+from djoser.serializers import (
+    UserCreateSerializer as DjoserUserCreateSerializer
 )
+from food.fields import Base64ImageField
 
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Сериализатор пользователя."""
-
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
 
@@ -42,7 +37,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(DjoserUserCreateSerializer):
-    """Сериализатор создания пользователя."""
 
     class Meta(DjoserUserCreateSerializer.Meta):
         model = User
@@ -57,19 +51,16 @@ class UserCreateSerializer(DjoserUserCreateSerializer):
 
 
 class SetAvatarSerializer(serializers.Serializer):
-    """Сериализатор установки аватара."""
-
     avatar = Base64ImageField(required=True)
 
 
 class SetAvatarResponseSerializer(serializers.Serializer):
-    """Сериализатор ответа с аватаром."""
-
-    avatar = serializers.CharField(source='avatar.url', read_only=True)
+    avatar = serializers.CharField(
+        source='avatar.url',
+        read_only=True
+    )
 
 
 class SetPasswordSerializer(serializers.Serializer):
-    """Сериализатор смены пароля."""
-
     current_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)

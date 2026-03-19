@@ -29,6 +29,8 @@ services:
       - static_volume:/app/static/
       - media_volume:/app/media/
       - ../data:/app/data
+      - ../user/migrations:/app/user/migrations
+      - ../food/migrations:/app/food/migrations
     env_file:
       - ./.env
     depends_on:

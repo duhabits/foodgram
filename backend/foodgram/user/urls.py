@@ -22,7 +22,9 @@ urlpatterns = [
     ),
     path(
         'users/<int:pk>/subscribe/',
-        SubscriptionViewSet.as_view({'post': 'subscribe', 'delete': 'subscribe'}),
+        SubscriptionViewSet.as_view(
+            {'post': 'subscribe', 'delete': 'subscribe'}
+        ),
         name='subscribe',
     ),
     path('users/me/avatar/', avatar_view, name='user-avatar'),
