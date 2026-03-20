@@ -2,12 +2,11 @@ import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from django.http import FileResponse, HttpResponseRedirect
-from django.http import HttpResponseNotFound
 from django.db.models import Sum
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import HttpResponse
 
 from food.models import (
     Recipe,
@@ -159,15 +158,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=False,
-        methods=('get',),
-        permission_classes=(permissions.IsAuthenticated,),
+        methods=['get'],
+        url_path='download_shopping_cart',
+        permission_classes=[permissions.IsAuthenticated],
     )
     def download_shopping_cart(self, request):
         user = request.user
         recipes = Recipe.objects.filter(shopping_cart__user=user)
+
         if not recipes.exists():
             return Response(
-                {'errors': 'Список покупок пуст'},
+                {'error': 'Корзина покупок пуста'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -175,38 +176,28 @@ class RecipeViewSet(viewsets.ModelViewSet):
             RecipeIngredient.objects.filter(recipe__in=recipes)
             .values('ingredient__name', 'ingredient__measurement_unit')
             .annotate(total_amount=Sum('amount'))
-            .order_by('ingredient__name')
         )
 
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer, pagesize=A4)
-        w, h = A4
-        y = h - 40 * mm
-        p.setFont('Helvetica-Bold', 16)
-        p.drawString(30 * mm, h - 20 * mm, 'Список покупок')
-        p.line(30 * mm, h - 25 * mm, w - 30 * mm, h - 25 * mm)
-        p.setFont('Helvetica', 12)
+        response = HttpResponse(content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_cart.txt"'
+        )
 
-        for ing in ingredients:
-            if y < 30 * mm:
-                p.showPage()
-                y = h - 20 * mm
-            text = (
-                f"• {ing['ingredient__name']} — "
-                f"{ing['total_amount']} "
-                f"{ing['ingredient__measurement_unit']}"
+        lines = ['Список покупок\n', '=' * 50 + '\n\n']
+
+        for ingredient in ingredients:
+            lines.append(
+                f"{ingredient['ingredient__name']} - "
+                f"{ingredient['total_amount']} "
+                f"{ingredient['ingredient__measurement_unit']}\n"
             )
-            p.drawString(30 * mm, y, text)
-            y -= 10 * mm
 
-        p.save()
-        buffer.seek(0)
-        return FileResponse(
-            buffer,
-            as_attachment=True,
-            filename='shopping_list.pdf',
-            content_type='application/pdf',
-        )
+        lines.append('\n' + '=' * 50)
+        lines.append(f'\nВсего позиций: {len(ingredients)}')
+
+        response.content = ''.join(lines)
+
+        return response
 
 
 @action(detail=True, methods=('get',))
