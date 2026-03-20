@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import (
     UserCreateSerializer as DjoserUserCreateSerializer
 )
-from food.fields import Base64ImageField
+from api.food.fields import Base64ImageField
 
 User = get_user_model()
 
