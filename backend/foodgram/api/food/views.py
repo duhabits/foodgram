@@ -9,19 +9,25 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Recipe, Tag, Ingredient, Favorite
-from .models import ShoppingCart, RecipeIngredient, ShortLink
-from .serializers import (
+from food.models import (
+    Recipe, 
+    Tag, 
+    Ingredient, 
+    Favorite, 
+    ShoppingCart, 
+    RecipeIngredient, 
+    ShortLink,    
+)
+from api.food.serializers import (
     RecipeListSerializer,
     TagSerializer,
     IngredientSerializer,
     RecipeCreateUpdateSerializer,
     RecipeMinifiedSerializer,
 )
-from .filters import RecipeFilter
-from .pagination import StandardResultsSetPagination
-from .constants import MAX_LENGTH_SHORT_CODE
-
+from api.food.filters import RecipeFilter
+from api.pagination import StandardResultsSetPagination
+from foodgram.core.constants import MAX_LENGTH_SHORT_CODE
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()

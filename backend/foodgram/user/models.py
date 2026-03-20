@@ -3,7 +3,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
 
-from food.constants import (
+from backend.foodgram.core.constants import (
     MAX_LENGTH_EMAIL,
     MAX_LENGTH_FIRST_LAST_NAME,
     MAX_LENGTH_USERNAME,

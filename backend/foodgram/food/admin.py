@@ -1,9 +1,8 @@
 from django.contrib import admin
 from django.db.models import Count
 from django.core.exceptions import ValidationError
-from .models import Tag, Ingredient, Recipe, RecipeIngredient
-from .models import Favorite, ShoppingCart, ShortLink
-
+from food.models import Tag, Ingredient, Recipe, RecipeIngredient
+from food.models import Favorite, ShoppingCart, ShortLink
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient

@@ -1,13 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import (
+
+from food.models import (
     Recipe,
     Tag,
     Ingredient,
     RecipeIngredient,
 )
-from .fields import Base64ImageField
-from user.serializers import UserSerializer
+from food.fields import Base64ImageField
+from api.user.serializers import UserSerializer
 
 User = get_user_model()
 
@@ -172,7 +173,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 amount=ingredient_data['amount'],
             )
 
-        # ВОЗВРАЩАЕМ СОЗДАННЫЙ ЭКЗЕМПЛЯР
         return recipe
 
     def update(self, instance, validated_data):

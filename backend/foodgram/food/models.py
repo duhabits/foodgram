@@ -4,13 +4,12 @@ from django.core.validators import MinValueValidator
 import random
 import string
 
-from .constants import (
+from ..core.constants import (
     MAX_LENGTH_TAG_NAME,
     MAX_LENGTH_TAG_SLUG,
     MAX_LENGTH_INGREDIENT_NAME,
     MAX_LENGTH_MEASUREMENT_UNIT,
     MAX_LENGTH_RECIPE_NAME,
-    MAX_LENGTH_RECIPE_TEXT,
     MAX_LENGTH_SHORT_CODE,
     MIN_COOKING_TIME,
     MIN_AMOUNT,
@@ -97,7 +96,6 @@ class Recipe(models.Model):
         verbose_name='Время приготовления (мин)',
     )
     text = models.TextField(
-        max_length=MAX_LENGTH_RECIPE_TEXT,
         verbose_name='Описание',
     )
     image = models.ImageField(
