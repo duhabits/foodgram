@@ -7,7 +7,7 @@ from food.models import (
     Ingredient,
     RecipeIngredient,
 )
-from food.fields import Base64ImageField
+from api.food.fields import Base64ImageField
 from api.user.serializers import UserSerializer
 
 User = get_user_model()
