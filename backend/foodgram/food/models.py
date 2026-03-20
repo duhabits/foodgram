@@ -4,7 +4,13 @@ from django.core.validators import MinValueValidator
 import random
 import string
 
-from foodgram.core.constants import (
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.core.validators import MinValueValidator
+import random
+import string
+
+from core.constants import (
     MAX_LENGTH_TAG_NAME,
     MAX_LENGTH_TAG_SLUG,
     MAX_LENGTH_INGREDIENT_NAME,
