@@ -27,7 +27,7 @@ from api.food.serializers import (
 )
 from api.food.filters import RecipeFilter
 from api.pagination import StandardResultsSetPagination
-from foodgram.core.constants import MAX_LENGTH_SHORT_CODE
+from core.constants import MAX_LENGTH_SHORT_CODE
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
