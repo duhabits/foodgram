@@ -102,7 +102,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ==================== ИСПРАВЛЕНО ====================
 # Custom user model
-AUTH_USER_MODEL = 'user.User'                    # ← было MyUser
+AUTH_USER_MODEL = 'user.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -120,14 +120,13 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Djoser settings
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SERIALIZERS': {
-        'user_create': 'user.serializers.UserCreateSerializer',   # ← было CustomUserCreateSerializer
-        'user': 'user.serializers.UserSerializer',
-        'current_user': 'user.serializers.UserSerializer',
+        'user_create': 'api.user.serializers.UserCreateSerializer',
+        'user': 'api.user.serializers.UserSerializer',
+        'current_user': 'api.user.serializers.UserSerializer',
     },
     'PERMISSIONS': {
         'user_list': ['rest_framework.permissions.AllowAny'],
