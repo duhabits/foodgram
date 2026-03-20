@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator
 import random
 import string
 
-from ..core.constants import (
+from foodgram.core.constants import (
     MAX_LENGTH_TAG_NAME,
     MAX_LENGTH_TAG_SLUG,
     MAX_LENGTH_INGREDIENT_NAME,
