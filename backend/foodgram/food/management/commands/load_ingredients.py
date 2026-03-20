@@ -1,7 +1,10 @@
 import csv
 import os
+
 from django.core.management.base import BaseCommand
+
 from food.models import Ingredient
+
 
 class Command(BaseCommand):
     help = 'Загрузка ингредиентов из CSV файла'
@@ -11,21 +14,17 @@ class Command(BaseCommand):
             '--file',
             type=str,
             default='data/ingredients.csv',
-            help='Путь к файлу с ингредиентами'
+            help='Путь к файлу с ингредиентами',
         )
 
     def handle(self, *args, **options):
         file_path = options['file']
 
         if not os.path.exists(file_path):
-            self.stdout.write(
-                self.style.ERROR(f'Файл {file_path} не найден!')
-            )
+            self.stdout.write(self.style.ERROR(f'Файл {file_path} не найден!'))
             return
 
-        self.stdout.write(
-            f'Загрузка ингредиентов из {file_path}...'
-        )
+        self.stdout.write(f'Загрузка ингредиентов из {file_path}...')
 
         count = 0
         try:
@@ -39,8 +38,7 @@ class Command(BaseCommand):
                         if name and unit:
                             ingredient, created = (
                                 Ingredient.objects.get_or_create(
-                                    name=name,
-                                    measurement_unit=unit
+                                    name=name, measurement_unit=unit
                                 )
                             )
                             if created:
@@ -50,9 +48,7 @@ class Command(BaseCommand):
                                 )
 
             self.stdout.write(
-                self.style.SUCCESS(
-                    f'Успешно загружено {count} ингредиентов'
-                )
+                self.style.SUCCESS(f'Успешно загружено {count} ингредиентов')
             )
             self.stdout.write(
                 self.style.SUCCESS(
@@ -62,6 +58,4 @@ class Command(BaseCommand):
             )
 
         except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f'Ошибка при загрузке: {e}')
-            )
+            self.stdout.write(self.style.ERROR(f'Ошибка при загрузке: {e}'))

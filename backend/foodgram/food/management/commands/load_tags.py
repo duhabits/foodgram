@@ -25,8 +25,7 @@ class Command(BaseCommand):
 
         for tag_data in tags:
             tag, created = Tag.objects.get_or_create(
-                name=tag_data['name'],
-                slug=tag_data['slug']
+                name=tag_data['name'], slug=tag_data['slug']
             )
             if created:
                 created_count += 1
@@ -35,10 +34,12 @@ class Command(BaseCommand):
                 existed_count += 1
                 self.stdout.write(f'  ⏺️ Уже существует: {tag.name}')
 
-        self.stdout.write(self.style.SUCCESS(
-            f'\n🎉 Загружено тегов: {created_count} новых, '
-            f'{existed_count} существовало'
-        ))
-        self.stdout.write(self.style.SUCCESS(
-            f'📊 Всего тегов в базе: {Tag.objects.count()}'
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'\n🎉 Загружено тегов: {created_count} новых, '
+                f'{existed_count} существовало'
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(f'📊 Всего тегов в базе: {Tag.objects.count()}')
+        )

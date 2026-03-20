@@ -1,10 +1,5 @@
-import io
-
 from django.db.models import Sum
 from django.http import HttpResponse
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
