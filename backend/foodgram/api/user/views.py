@@ -1,22 +1,21 @@
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from api.food.serializers import RecipeMinifiedSerializer
+from api.pagination import StandardResultsSetPagination
+from api.user.serializers import (
+    SetAvatarResponseSerializer,
+    SetAvatarSerializer,
+    SetPasswordSerializer,
+    UserCreateSerializer,
+    UserSerializer,
+)
 from food.models import Recipe
 from user.models import Subscription
-from api.food.serializers import RecipeMinifiedSerializer
-from api.user.serializers import (
-    UserSerializer,
-    UserCreateSerializer,
-    SetAvatarSerializer,
-    SetAvatarResponseSerializer,
-    SetPasswordSerializer,
-)
-from api.pagination import StandardResultsSetPagination
-
 
 User = get_user_model()
 

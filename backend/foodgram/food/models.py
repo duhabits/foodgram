@@ -1,31 +1,25 @@
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator
 import random
 import string
 
-from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
-import random
-import string
+from django.db import models
 
 from core.constants import (
-    MAX_LENGTH_TAG_NAME,
-    MAX_LENGTH_TAG_SLUG,
     MAX_LENGTH_INGREDIENT_NAME,
     MAX_LENGTH_MEASUREMENT_UNIT,
     MAX_LENGTH_RECIPE_NAME,
     MAX_LENGTH_SHORT_CODE,
-    MIN_COOKING_TIME,
+    MAX_LENGTH_TAG_NAME,
+    MAX_LENGTH_TAG_SLUG,
     MIN_AMOUNT,
+    MIN_COOKING_TIME,
 )
 
 User = get_user_model()
 
 
 class Tag(models.Model):
-    """Модель тегов."""
 
     name = models.CharField(
         max_length=MAX_LENGTH_TAG_NAME,
@@ -48,7 +42,6 @@ class Tag(models.Model):
 
 
 class Ingredient(models.Model):
-    """Модель ингредиентов."""
 
     name = models.CharField(
         max_length=MAX_LENGTH_INGREDIENT_NAME,
@@ -75,7 +68,6 @@ class Ingredient(models.Model):
 
 
 class Recipe(models.Model):
-    """Модель рецептов."""
 
     author = models.ForeignKey(
         User,
@@ -125,7 +117,6 @@ class Recipe(models.Model):
 
 
 class RecipeIngredient(models.Model):
-    """Связка рецепта и ингредиента."""
 
     ingredient = models.ForeignKey(
         Ingredient,
@@ -153,7 +144,6 @@ class RecipeIngredient(models.Model):
 
 
 class Favorite(models.Model):
-    """Избранное."""
 
     user = models.ForeignKey(
         User,
@@ -183,7 +173,6 @@ class Favorite(models.Model):
 
 
 class ShoppingCart(models.Model):
-    """Корзина покупок."""
 
     user = models.ForeignKey(
         User,
@@ -213,7 +202,6 @@ class ShoppingCart(models.Model):
 
 
 class ShortLink(models.Model):
-    """Модель для коротких ссылок."""
 
     recipe = models.OneToOneField(
         Recipe,
@@ -242,7 +230,6 @@ class ShortLink(models.Model):
 
     @classmethod
     def generate_unique_code(cls, length=MAX_LENGTH_SHORT_CODE):
-        """Генерация уникального кода."""
         chars = string.ascii_letters + string.digits
         while True:
             code = ''.join(random.choices(chars, k=length))

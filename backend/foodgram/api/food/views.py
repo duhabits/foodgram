@@ -1,32 +1,33 @@
 import io
-from reportlab.pdfgen import canvas
+
+from django.db.models import Sum
+from django.http import HttpResponse
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from django.db.models import Sum
-from rest_framework import viewsets, status, permissions
+from reportlab.pdfgen import canvas
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.http import HttpResponse
 
-from food.models import (
-    Recipe,
-    Tag,
-    Ingredient,
-    Favorite,
-    ShoppingCart,
-    RecipeIngredient,
-    ShortLink,
-)
+from api.food.filters import RecipeFilter
 from api.food.serializers import (
-    RecipeListSerializer,
-    TagSerializer,
     IngredientSerializer,
     RecipeCreateUpdateSerializer,
+    RecipeListSerializer,
     RecipeMinifiedSerializer,
+    TagSerializer,
 )
-from api.food.filters import RecipeFilter
 from api.pagination import StandardResultsSetPagination
 from core.constants import MAX_LENGTH_SHORT_CODE
+from food.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    ShortLink,
+    Tag,
+)
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):

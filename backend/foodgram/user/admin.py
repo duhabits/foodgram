@@ -2,15 +2,19 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.core.exceptions import ValidationError
 
-from .models import User, Subscription
+from .models import Subscription, User
 
 
 @admin.register(User)
 class UserAdmin(UserAdmin):
 
     list_display = (
-        'id', 'username', 'email',
-        'first_name', 'last_name', 'is_staff'
+        'id',
+        'username',
+        'email',
+        'first_name',
+        'last_name',
+        'is_staff',
     )
     list_display_links = ('id', 'username')
     search_fields = ('username', 'email', 'first_name', 'last_name')
@@ -18,28 +22,40 @@ class UserAdmin(UserAdmin):
 
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('Персональная информация', {
-            'fields': ('first_name', 'last_name', 'email', 'avatar')
-        }),
-        ('Права доступа', {
-            'fields': (
-                'is_active', 'is_staff', 'is_superuser',
-                'groups', 'user_permissions'
-            )
-        }),
-        ('Важные даты', {
-            'fields': ('last_login', 'date_joined')
-        }),
+        (
+            'Персональная информация',
+            {'fields': ('first_name', 'last_name', 'email', 'avatar')},
+        ),
+        (
+            'Права доступа',
+            {
+                'fields': (
+                    'is_active',
+                    'is_staff',
+                    'is_superuser',
+                    'groups',
+                    'user_permissions',
+                )
+            },
+        ),
+        ('Важные даты', {'fields': ('last_login', 'date_joined')}),
     )
 
     add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': (
-                'username', 'email', 'first_name',
-                'last_name', 'password1', 'password2'
-            ),
-        }),
+        (
+            None,
+            {
+                'classes': ('wide',),
+                'fields': (
+                    'username',
+                    'email',
+                    'first_name',
+                    'last_name',
+                    'password1',
+                    'password2',
+                ),
+            },
+        ),
     )
 
 

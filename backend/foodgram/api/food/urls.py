@@ -1,11 +1,11 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from api.food.views import (
-    TagViewSet,
     IngredientViewSet,
     RecipeViewSet,
-    redirect_short_link,
+    TagViewSet,
+    get_link,
 )
 
 router = DefaultRouter()
@@ -15,5 +15,5 @@ router.register(r'recipes', RecipeViewSet, basename='recipes')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('s/<str:code>/', redirect_short_link, name='short-link-redirect'),
+    path('s/<str:code>/', get_link, name='short-link-redirect'),
 ]

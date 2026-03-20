@@ -1,8 +1,9 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from djoser.serializers import (
-    UserCreateSerializer as DjoserUserCreateSerializer
+    UserCreateSerializer as DjoserUserCreateSerializer,
 )
+from rest_framework import serializers
+
 from api.food.fields import Base64ImageField
 
 User = get_user_model()
@@ -55,10 +56,7 @@ class SetAvatarSerializer(serializers.Serializer):
 
 
 class SetAvatarResponseSerializer(serializers.Serializer):
-    avatar = serializers.CharField(
-        source='avatar.url',
-        read_only=True
-    )
+    avatar = serializers.CharField(source='avatar.url', read_only=True)
 
 
 class SetPasswordSerializer(serializers.Serializer):

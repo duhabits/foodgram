@@ -1,25 +1,27 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from rest_framework import serializers
 
-from food.models import (
-    Recipe,
-    Tag,
-    Ingredient,
-    RecipeIngredient,
-)
 from api.food.fields import Base64ImageField
 from api.user.serializers import UserSerializer
+from food.models import (
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    Tag,
+)
 
 User = get_user_model()
 
 
 class TagSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Tag
         fields = ('id', 'name', 'slug')
 
 
 class IngredientSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
