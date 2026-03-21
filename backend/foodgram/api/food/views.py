@@ -3,7 +3,6 @@ from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.filters import SearchFilter
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
@@ -41,9 +40,11 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
     permission_classes = (permissions.AllowAny,)
 
-    filter_backends = (SearchFilter,)
-
-    search_fields = ('^name',)
+    def get_queryset(self):
+        name = self.request.query_params.get('name')
+        if name:
+            return self.queryset.filter(name__istartswith=name)
+        return self.queryset
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
