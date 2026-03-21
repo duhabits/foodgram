@@ -40,7 +40,11 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
     permission_classes = (permissions.AllowAny,)
 
-    search_fields = ('^name',)
+    def get_queryset(self):
+        name = self.request.query_params.get('name')
+        if name:
+            return self.queryset.filter(name__istartswith=name)
+        return self.queryset
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
