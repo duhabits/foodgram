@@ -24,7 +24,7 @@ class UserViewSet(DjoserUserViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
-    permission_classes = permissions.AllowAny
+    permission_classes = (permissions.AllowAny,)
 
     def get_serializer_class(self):
         if self.action == 'create':
