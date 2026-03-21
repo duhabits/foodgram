@@ -8,7 +8,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('Загрузка тегов...')
 
-        tags = [
+        tags = (
             {'name': 'Завтрак', 'slug': 'breakfast'},
             {'name': 'Обед', 'slug': 'lunch'},
             {'name': 'Ужин', 'slug': 'dinner'},
@@ -18,7 +18,7 @@ class Command(BaseCommand):
             {'name': 'Выпечка', 'slug': 'bakery'},
             {'name': 'Напитки', 'slug': 'drinks'},
             {'name': 'Закуски', 'slug': 'snacks'},
-        ]
+        )
 
         created_count = 0
         existed_count = 0

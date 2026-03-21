@@ -24,7 +24,7 @@ class UserViewSet(DjoserUserViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
-    permission_classes = [permissions.AllowAny]
+    permission_classes = permissions.AllowAny
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -39,9 +39,9 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=False,
-        methods=['get'],
+        methods=('get',),
         url_path='subscriptions',
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes=(permissions.IsAuthenticated,),
     )
     def subscriptions(self, request):
         queryset = self.get_queryset()
@@ -67,9 +67,12 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=True,
-        methods=['post', 'delete'],
+        methods=(
+            'post',
+            'delete',
+        ),
         url_path='subscribe',
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes=(permissions.IsAuthenticated,),
     )
     def subscribe(self, request, pk=None, id=None):
         if pk is None and id is not None:
@@ -121,9 +124,12 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=False,
-        methods=['put', 'delete'],
+        methods=(
+            'put',
+            'delete',
+        ),
         url_path='me/avatar',
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes=(permissions.IsAuthenticated,),
     )
     def avatar(self, request):
         user = request.user
@@ -153,9 +159,9 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=False,
-        methods=['post'],
+        methods=('post',),
         url_path='set_password',
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes=(permissions.IsAuthenticated,),
     )
     def set_password(self, request):
         serializer = SetPasswordSerializer(data=request.data)

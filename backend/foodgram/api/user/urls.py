@@ -6,8 +6,8 @@ from api.user.views import UserViewSet
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='users')
 
-urlpatterns = [
+urlpatterns = (
     path('', include(router.urls)),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
-]
+)

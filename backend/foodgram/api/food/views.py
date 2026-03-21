@@ -3,6 +3,8 @@ from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 
 from api.food.filters import RecipeFilter
 from api.food.serializers import (
@@ -38,11 +40,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
     permission_classes = (permissions.AllowAny,)
 
-    def get_queryset(self):
-        name = self.request.query_params.get('name')
-        if name:
-            return self.queryset.filter(name__istartswith=name)
-        return self.queryset
+    search_fields = ('^name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -149,14 +147,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 )
             },
         )
-        full_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
-        return Response({'short-link': full_url})
+        short_url_path = reverse(
+            'short-link-redirect', args=(short_link.code,)
+        )
+        short_url = request.build_absolute_uri(short_url_path)
+        return Response({'short-link': short_url})
 
     @action(
         detail=False,
-        methods=['get'],
+        methods=('get',),
         url_path='download_shopping_cart',
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes=(permissions.IsAuthenticated,),
     )
     def download_shopping_cart(self, request):
         user = request.user
@@ -196,16 +197,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
 
-@action(detail=True, methods=('get',))
-def get_link(self, request, pk=None):
-    recipe = self.get_object()
-    short_link, created = ShortLink.objects.get_or_create(
-        recipe=recipe,
-        defaults={
-            'code': ShortLink.generate_unique_code(
-                length=MAX_LENGTH_SHORT_CODE
-            )
-        },
-    )
-    short_url = request.build_absolute_uri(f'/s/{short_link.code}/')
-    return Response({'short-link': short_url})
+def short_link_redirect(request, code):
+    short_link = get_object_or_404(ShortLink, code=code)
+    recipe = short_link.recipe
+    redirect_url = request.build_absolute_uri(f'/recipes/{recipe.id}/')
+    return redirect(redirect_url)

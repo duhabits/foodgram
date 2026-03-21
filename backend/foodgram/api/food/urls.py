@@ -5,7 +5,6 @@ from api.food.views import (
     IngredientViewSet,
     RecipeViewSet,
     TagViewSet,
-    get_link,
 )
 
 router = DefaultRouter()
@@ -13,7 +12,4 @@ router.register(r'tags', TagViewSet, basename='tags')
 router.register(r'ingredients', IngredientViewSet, basename='ingredients')
 router.register(r'recipes', RecipeViewSet, basename='recipes')
 
-urlpatterns = [
-    path('', include(router.urls)),
-    path('s/<str:code>/', get_link, name='short-link-redirect'),
-]
+urlpatterns = (path('', include(router.urls)),)

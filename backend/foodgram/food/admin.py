@@ -110,7 +110,6 @@ class FavoriteAdmin(admin.ModelAdmin):
         'recipe__name',
         'recipe__author__username',
     )
-    raw_id_fields = ('user', 'recipe')
     list_filter = ('recipe__author',)
 
     def get_recipe_author(self, obj):
@@ -129,7 +128,6 @@ class ShoppingCartAdmin(admin.ModelAdmin):
         'recipe__name',
         'recipe__author__username',
     )
-    raw_id_fields = ('user', 'recipe')
     list_filter = ('recipe__author',)
 
     def get_recipe_author(self, obj):
