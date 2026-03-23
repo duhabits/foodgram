@@ -126,7 +126,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=('get',), url_path='get-link')
+    @action(detail=True, methods=('get',), url_path='get_link')
     def get_link(self, request, pk=None):
         recipe = self.get_object()
         short_link, _ = ShortLink.objects.get_or_create(
