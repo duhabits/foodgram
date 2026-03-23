@@ -1,10 +1,10 @@
 from django.db.models import Sum
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
 
 from api.food.filters import RecipeFilter
 from api.food.serializers import (
@@ -39,12 +39,9 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     pagination_class = None
     permission_classes = (permissions.AllowAny,)
-
-    def get_queryset(self):
-        name = self.request.query_params.get('name')
-        if name:
-            return self.queryset.filter(name__istartswith=name)
-        return self.queryset
+    # Заменяем get_queryset на стандартный SearchFilter
+    filter_backends = (SearchFilter,)
+    search_fields = ('^name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -66,19 +63,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        full_serializer = RecipeListSerializer(
-            serializer.instance, context={'request': request}
-        )
-        return Response(
-            full_serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
+    # Низкоуровневый метод create удален.
+    # Стандартный create из ModelViewSet сам вызовет правильный сериализатор.
 
     @action(
         detail=True,
@@ -140,7 +126,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=('get',))
+    @action(detail=True, methods=('get',), url_path='get-link')
     def get_link(self, request, pk=None):
         recipe = self.get_object()
         short_link, _ = ShortLink.objects.get_or_create(
@@ -151,10 +137,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 )
             },
         )
-        short_url_path = reverse(
-            'short-link-redirect', args=(short_link.code,)
-        )
-        short_url = request.build_absolute_uri(short_url_path)
+        # Ссылка формируется через префикс /s/, который обрабатывается Nginx
+        short_url = request.build_absolute_uri(f'/s/{short_link.code}/')
         return Response({'short-link': short_url})
 
     @action(
@@ -185,23 +169,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
         lines = ['Список покупок\n', '=' * 50 + '\n\n']
-
         for ingredient in ingredients:
             lines.append(
                 f"{ingredient['ingredient__name']} - "
                 f"{ingredient['total_amount']} "
                 f"{ingredient['ingredient__measurement_unit']}\n"
             )
-
         lines.append('\n' + '=' * 50)
         lines.append(f'\nВсего позиций: {len(ingredients)}')
 
         response.content = ''.join(lines)
-
         return response
 
 
+# Функция редиректа для Nginx/Django (вне ViewSet)
 def short_link_redirect(request, code):
     short_link = get_object_or_404(ShortLink, code=code)
-    recipe = short_link.recipe
-    return redirect(f'/recipes/{recipe.id}/')
+    # Перенаправляем на путь рецепта во фронтенд-части
+    return redirect(f'/recipes/{short_link.recipe.id}/')
