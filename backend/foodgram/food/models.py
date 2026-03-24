@@ -90,7 +90,7 @@ class Recipe(models.Model):
         verbose_name='Ингредиенты',
     )
     cooking_time = models.IntegerField(
-        validators=[MinValueValidator(MIN_COOKING_TIME)],
+        validators=(MinValueValidator(MIN_COOKING_TIME),),
         verbose_name='Время приготовления (мин)',
     )
     text = models.TextField(
@@ -131,7 +131,7 @@ class RecipeIngredient(models.Model):
         verbose_name='Рецепт',
     )
     amount = models.IntegerField(
-        validators=[MinValueValidator(MIN_AMOUNT)],
+        validators=(MinValueValidator(MIN_AMOUNT),),
         verbose_name='Количество',
     )
 

@@ -39,7 +39,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     pagination_class = None
     permission_classes = (permissions.AllowAny,)
-    # Заменяем get_queryset на стандартный SearchFilter
+
     filter_backends = (SearchFilter,)
     search_fields = ('^name',)
 
@@ -62,9 +62,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    # Низкоуровневый метод create удален.
-    # Стандартный create из ModelViewSet сам вызовет правильный сериализатор.
 
     @action(
         detail=True,
@@ -137,7 +134,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 )
             },
         )
-        # Ссылка формируется через префикс /s/, который обрабатывается Nginx
         short_url = request.build_absolute_uri(f'/s/{short_link.code}/')
         return Response({'short-link': short_url})
 
@@ -182,8 +178,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
 
-# Функция редиректа для Nginx/Django (вне ViewSet)
 def short_link_redirect(request, code):
     short_link = get_object_or_404(ShortLink, code=code)
-    # Перенаправляем на путь рецепта во фронтенд-части
     return redirect(f'/recipes/{short_link.recipe.id}/')
