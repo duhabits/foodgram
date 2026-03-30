@@ -10,6 +10,7 @@ from food.models import (
     RecipeIngredient,
     Tag,
 )
+from core.constants import MIN_INGREDIENT_AMOUNT
 
 User = get_user_model()
 
@@ -86,7 +87,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
 class IngredientCreateSerializer(serializers.Serializer):
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
-    amount = serializers.IntegerField(min_value=1)
+    amount = serializers.IntegerField(min_value=MIN_INGREDIENT_AMOUNT)
 
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
@@ -95,7 +96,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         many=True, queryset=Tag.objects.all(), write_only=True
     )
     image = Base64ImageField(required=True, allow_null=False, write_only=True)
-    cooking_time = serializers.IntegerField(min_value=1)
+    cooking_time = serializers.IntegerField(min_value=MIN_INGREDIENT_AMOUNT)
 
     class Meta:
         model = Recipe
