@@ -12,6 +12,9 @@ from core.constants import (
 
 class User(AbstractUser):
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ('username', 'first_name', 'last_name')
+
     username = models.CharField(
         max_length=MAX_LENGTH_USERNAME,
         unique=True,
@@ -36,9 +39,6 @@ class User(AbstractUser):
         null=True,
         blank=True,
     )
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ('username', 'first_name', 'last_name')
 
     class Meta:
         verbose_name = 'Пользователь'

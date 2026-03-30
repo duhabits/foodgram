@@ -14,6 +14,7 @@ from core.constants import (
     MAX_LENGTH_TAG_SLUG,
     MIN_AMOUNT,
     MIN_COOKING_TIME,
+    MAX_LENGTH_ADMIN_NAME,
 )
 
 User = get_user_model()
@@ -38,7 +39,7 @@ class Tag(models.Model):
         ordering = ('name',)
 
     def __str__(self):
-        return self.name
+        return self.name[:MAX_LENGTH_ADMIN_NAME]
 
 
 class Ingredient(models.Model):
@@ -64,7 +65,7 @@ class Ingredient(models.Model):
         )
 
     def __str__(self):
-        return f'{self.name}, {self.measurement_unit}'
+        return f'{self.name}, {self.measurement_unit}'[:MAX_LENGTH_ADMIN_NAME]
 
 
 class Recipe(models.Model):
@@ -113,7 +114,7 @@ class Recipe(models.Model):
         ordering = ('-created_at',)
 
     def __str__(self):
-        return self.name
+        return self.name[:MAX_LENGTH_ADMIN_NAME]
 
 
 class RecipeIngredient(models.Model):
@@ -130,7 +131,7 @@ class RecipeIngredient(models.Model):
         related_name='recipe_ingredients',
         verbose_name='Рецепт',
     )
-    amount = models.IntegerField(
+    amount = models.PositiveSmallIntegerField(
         validators=(MinValueValidator(MIN_AMOUNT),),
         verbose_name='Количество',
     )
@@ -140,7 +141,9 @@ class RecipeIngredient(models.Model):
         verbose_name_plural = 'Ингредиенты рецепта'
 
     def __str__(self):
-        return f'{self.recipe.name} — {self.ingredient.name} ({self.amount})'
+        return f'{self.recipe.name} — {self.ingredient.name} ({self.amount})'[
+            :MAX_LENGTH_ADMIN_NAME
+        ]
 
 
 class Favorite(models.Model):
@@ -169,7 +172,9 @@ class Favorite(models.Model):
         )
 
     def __str__(self):
-        return f'{self.user.username} — {self.recipe.name}'
+        return f'{self.user.username} — {self.recipe.name}'[
+            :MAX_LENGTH_ADMIN_NAME
+        ]
 
 
 class ShoppingCart(models.Model):
@@ -198,7 +203,9 @@ class ShoppingCart(models.Model):
         )
 
     def __str__(self):
-        return f'{self.user.username} — {self.recipe.name}'
+        return f'{self.user.username} — {self.recipe.name}'[
+            :MAX_LENGTH_ADMIN_NAME
+        ]
 
 
 class ShortLink(models.Model):
@@ -226,7 +233,7 @@ class ShortLink(models.Model):
         ordering = ('-created_at',)
 
     def __str__(self):
-        return f'{self.code} → {self.recipe.name}'
+        return f'{self.code} → {self.recipe.name}'[:MAX_LENGTH_ADMIN_NAME]
 
     @classmethod
     def generate_unique_code(cls, length=MAX_LENGTH_SHORT_CODE):

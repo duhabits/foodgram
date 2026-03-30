@@ -7,9 +7,8 @@ SECRET_KEY = (
     'django-insecure-vh6_-va3bdxdxi@p$r5ic-hv1=&18femxxn^ygn1cykbpw()=e'
 )
 
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
+DEBUG = os.getenv('DEBUG', True)
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split()
 
 INSTALLED_APPS = (
     'django.contrib.admin',
@@ -57,12 +56,26 @@ TEMPLATES = (
 
 WSGI_APPLICATION = 'foodgram.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+USE_SQLITE = os.getenv('USE_SQLITE', 'True').lower() in ('True')
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'foodgram'),
+            'USER': os.getenv('DB_USER', 'foodgram_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'foodgram_password'),
+            'HOST': os.getenv('DB_HOST', 'db'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = (
     {
@@ -123,7 +136,6 @@ DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SERIALIZERS': {
-        'user_create': 'api.user.serializers.UserCreateSerializer',
         'user': 'api.user.serializers.UserSerializer',
         'current_user': 'api.user.serializers.UserSerializer',
     },
