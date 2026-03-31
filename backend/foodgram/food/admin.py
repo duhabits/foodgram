@@ -22,6 +22,28 @@ class RecipeIngredientInline(admin.TabularInline):
     verbose_name_plural = 'Ингредиенты'
 
 
+class CookingTimeFilter(admin.SimpleListFilter):
+    """Фильтр для группировки рецептов по времени приготовления"""
+    title = 'Время приготовления'
+    parameter_name = 'cooking_time_range'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('fast', 'Быстрые (до 30 мин)'),
+            ('medium', 'Средние (30-60 мин)'),
+            ('long', 'Долгие (более 60 мин)'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'fast':
+            return queryset.filter(cooking_time__lte=30)
+        if self.value() == 'medium':
+            return queryset.filter(cooking_time__gte=30, cooking_time__lte=60)
+        if self.value() == 'long':
+            return queryset.filter(cooking_time__gte=60)
+        return queryset
+
+
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'slug')
@@ -55,25 +77,15 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     list_display_links = ('id', 'name')
     search_fields = ('name', 'author__username', 'author__email')
-    list_filter = ('tags', 'cooking_time', 'cooking_time_range')
+    list_filter = ('tags', 'cooking_time', CookingTimeFilter)
     readonly_fields = ('created_at', 'favorites_count', 'image_preview')
     filter_horizontal = ('tags',)
     inlines = [RecipeIngredientInline]
 
     fieldsets = (
-        (
-            'Основная информация',
-            {
-                'fields': (
-                    'author',
-                    'name',
-                    'text',
-                    'cooking_time',
-                    'image_preview',
-                    'image',
-                )
-            },
-        ),
+        ('Основная информация', {
+            'fields': ('author', 'name', 'text', 'cooking_time', 'image_preview', 'image')
+        }),
         ('Связи', {'fields': ('tags',), 'classes': ('wide',)}),
         ('Даты', {'fields': ('created_at',), 'classes': ('collapse',)}),
     )
@@ -90,22 +102,20 @@ class RecipeAdmin(admin.ModelAdmin):
     def favorites_count(self, obj):
         return getattr(obj, 'favorites_count', obj.favorites.count())
 
-    @admin.display(description='Теги', ordering='tags__name')
+    @admin.display(description='Теги')
     def get_tags_display(self, obj):
         tags = obj.tags.values_list('name', flat=True)
         return ', '.join(tags) if tags else '-'
 
-    @admin.display(
-        description='Ингредиенты',
-        ordering='recipe_ingredients__ingredient__name',
-    )
+    @admin.display(description='Ингредиенты')
     def get_ingredients_display(self, obj):
         ingredients = obj.recipe_ingredients.select_related(
             'ingredient'
         ).values_list('ingredient__name', flat=True)
-        return ', '.join(ingredients[:5]) + (
-            '...' if len(ingredients) > 5 else ''
-        )
+        result = ', '.join(list(ingredients[:5]))
+        if len(ingredients) > 5:
+            result += '...'
+        return result if result else '-'
 
     @admin.display(description='Изображение')
     def image_preview(self, obj):
@@ -114,46 +124,6 @@ class RecipeAdmin(admin.ModelAdmin):
                 f'<img src="{obj.image.url}" width="80" height="60" style="object-fit: cover;" />'
             )
         return 'Нет изображения'
-
-    def get_list_filter(self, request):
-        """Динамический фильтр по времени готовки"""
-        return [
-            'tags',
-            'cooking_time',
-            ('cooking_time', admin.SimpleListFilter),
-        ]
-
-
-class CookingTimeFilter(admin.SimpleListFilter):
-    """Фильтр для группировки рецептов по времени приготовления"""
-
-    title = 'Время приготовления'
-    parameter_name = 'cooking_time_range'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('fast', 'Быстрые (до 30 мин)'),
-            ('medium', 'Средние (30-60 мин)'),
-            ('long', 'Долгие (более 60 мин)'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'fast':
-            return queryset.filter(cooking_time__lte=30)
-        if self.value() == 'medium':
-            return queryset.filter(cooking_time__gte=30, cooking_time__lte=60)
-        if self.value() == 'long':
-            return queryset.filter(cooking_time__gte=60)
-        return queryset
-
-
-# Перерегистрируем RecipeAdmin с фильтром
-admin.site.unregister(Recipe)
-
-
-@admin.register(Recipe)
-class RecipeAdmin(RecipeAdmin):
-    list_filter = RecipeAdmin.list_filter + [CookingTimeFilter]
 
 
 @admin.register(RecipeIngredient)
@@ -176,9 +146,7 @@ class FavoriteAdmin(admin.ModelAdmin):
     )
     list_filter = ('recipe__author',)
 
-    @admin.display(
-        description='Автор рецепта', ordering='recipe__author__username'
-    )
+    @admin.display(description='Автор рецепта', ordering='recipe__author__username')
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
 
@@ -194,9 +162,7 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     )
     list_filter = ('recipe__author',)
 
-    @admin.display(
-        description='Автор рецепта', ordering='recipe__author__username'
-    )
+    @admin.display(description='Автор рецепта', ordering='recipe__author__username')
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
 
