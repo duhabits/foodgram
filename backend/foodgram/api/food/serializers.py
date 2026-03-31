@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Exists, OuterRef
 from rest_framework import serializers
 
-from api.food.fields import Base64ImageField
+from drf_extra_fields.fields import Base64ImageField
 from api.user.serializers import UserSerializer
 from food.models import (
     Ingredient,
@@ -10,6 +10,7 @@ from food.models import (
     RecipeIngredient,
     Tag,
 )
+from food.models import Favorite, ShoppingCart
 from core.constants import MIN_INGREDIENT_AMOUNT
 
 User = get_user_model()
@@ -183,3 +184,47 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             self.create_recipe_ingredients(instance, ingredients_data)
 
         return instance
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ('user', 'recipe')
+
+    def validate(self, data):
+        """Проверка, что рецепт не добавлен повторно"""
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            if Favorite.objects.filter(
+                user=data['user'], recipe=data['recipe']
+            ).exists():
+                raise serializers.ValidationError(
+                    {'errors': 'Рецепт уже в избранном'}
+                )
+        return data
+
+    def create(self, validated_data):
+        """Создание записи в избранном"""
+        return Favorite.objects.create(**validated_data)
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingCart
+        fields = ('user', 'recipe')
+
+    def validate(self, data):
+        """Проверка, что рецепт не добавлен повторно"""
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            if ShoppingCart.objects.filter(
+                user=data['user'], recipe=data['recipe']
+            ).exists():
+                raise serializers.ValidationError(
+                    {'errors': 'Рецепт уже в списке покупок'}
+                )
+        return data
+
+    def create(self, validated_data):
+        """Создание записи в корзине"""
+        return ShoppingCart.objects.create(**validated_data)

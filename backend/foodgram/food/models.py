@@ -1,6 +1,7 @@
 import random
 import string
 
+from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -16,6 +17,8 @@ from core.constants import (
     MIN_COOKING_TIME,
     MAX_LENGTH_ADMIN_NAME,
 )
+from food.services import generate_unique_short_code
+
 
 User = get_user_model()
 
@@ -100,8 +103,6 @@ class Recipe(models.Model):
     image = models.ImageField(
         upload_to='recipes/',
         verbose_name='Изображение',
-        blank=False,
-        null=False,
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -118,7 +119,6 @@ class Recipe(models.Model):
 
 
 class RecipeIngredient(models.Model):
-
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
@@ -131,7 +131,7 @@ class RecipeIngredient(models.Model):
         related_name='recipe_ingredients',
         verbose_name='Рецепт',
     )
-    amount = models.PositiveSmallIntegerField(
+    amount = models.IntegerField(
         validators=(MinValueValidator(MIN_AMOUNT),),
         verbose_name='Количество',
     )
@@ -139,77 +139,59 @@ class RecipeIngredient(models.Model):
     class Meta:
         verbose_name = 'Ингредиент рецепта'
         verbose_name_plural = 'Ингредиенты рецепта'
+        unique_together = (
+            'recipe',
+            'ingredient',
+        )
 
     def __str__(self):
-        return f'{self.recipe.name} — {self.ingredient.name} ({self.amount})'[
-            :MAX_LENGTH_ADMIN_NAME
-        ]
+        return f'{self.recipe.name} — {self.ingredient.name} ({self.amount})'
 
 
-class Favorite(models.Model):
+class BaseUserRecipe(models.Model):
+    """Абстрактная модель для связи пользователя с рецептом"""
 
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='favorites',
         verbose_name='Пользователь',
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name='favorites',
         verbose_name='Рецепт',
     )
 
     class Meta:
+        abstract = True
+        constraints = (
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='%(app_label)s_%(class)s_unique',
+            ),
+        )
+
+    def __str__(self):
+        return f'{self.user.username} — {self.recipe.name} ({self._meta.verbose_name})'
+
+
+class Favorite(BaseUserRecipe):
+    """Модель избранного"""
+
+    class Meta(BaseUserRecipe.Meta):
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
-        constraints = (
-            models.UniqueConstraint(
-                fields=('user', 'recipe'),
-                name='unique_favorite',
-            ),
-        )
-
-    def __str__(self):
-        return f'{self.user.username} — {self.recipe.name}'[
-            :MAX_LENGTH_ADMIN_NAME
-        ]
 
 
-class ShoppingCart(models.Model):
+class ShoppingCart(BaseUserRecipe):
+    """Модель корзины покупок"""
 
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='shopping_cart',
-        verbose_name='Пользователь',
-    )
-    recipe = models.ForeignKey(
-        Recipe,
-        on_delete=models.CASCADE,
-        related_name='shopping_cart',
-        verbose_name='Рецепт',
-    )
-
-    class Meta:
+    class Meta(BaseUserRecipe.Meta):
         verbose_name = 'Корзина'
         verbose_name_plural = 'Корзина'
-        constraints = (
-            models.UniqueConstraint(
-                fields=('user', 'recipe'),
-                name='unique_shopping_cart',
-            ),
-        )
-
-    def __str__(self):
-        return f'{self.user.username} — {self.recipe.name}'[
-            :MAX_LENGTH_ADMIN_NAME
-        ]
 
 
 class ShortLink(models.Model):
-
     recipe = models.OneToOneField(
         Recipe,
         on_delete=models.CASCADE,
@@ -233,12 +215,8 @@ class ShortLink(models.Model):
         ordering = ('-created_at',)
 
     def __str__(self):
-        return f'{self.code} → {self.recipe.name}'[:MAX_LENGTH_ADMIN_NAME]
+        return f'{self.code} → {self.recipe.name}'
 
     @classmethod
     def generate_unique_code(cls, length=MAX_LENGTH_SHORT_CODE):
-        chars = string.ascii_letters + string.digits
-        while True:
-            code = ''.join(random.choices(chars, k=length))
-            if not cls.objects.filter(code=code).exists():
-                return code
+        return generate_unique_short_code(cls, length)
