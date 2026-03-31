@@ -43,7 +43,7 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=True,
-        methods=('post', 'delete'),
+        methods=('post',),
         url_path='subscribe',
         permission_classes=(permissions.IsAuthenticated,),
     )
@@ -77,7 +77,7 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(
         detail=False,
-        methods=('put', 'delete'),
+        methods=('put',),
         url_path='me/avatar',
         permission_classes=(permissions.IsAuthenticated,),
     )
