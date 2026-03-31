@@ -12,7 +12,6 @@ from api.food.serializers import (
     IngredientSerializer,
     RecipeCreateUpdateSerializer,
     RecipeListSerializer,
-    RecipeMinifiedSerializer,
     ShoppingCartSerializer,
     TagSerializer,
 )
@@ -28,6 +27,7 @@ from food.models import (
     ShortLink,
     Tag,
 )
+from api.common.serializers import RecipeMinifiedSerializer
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):

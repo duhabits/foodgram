@@ -1,9 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Exists, OuterRef
 from rest_framework import serializers
-
 from drf_extra_fields.fields import Base64ImageField
-from api.user.serializers import UserSerializer
+
 from food.models import (
     Ingredient,
     Recipe,
@@ -42,21 +40,8 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class RecipeMinifiedSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Recipe
-        fields = ('id', 'name', 'image', 'cooking_time')
-
-    def get_image(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
-
-
 class RecipeListSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
     ingredients = IngredientInRecipeSerializer(
         source='recipe_ingredients', many=True, read_only=True
@@ -84,6 +69,11 @@ class RecipeListSerializer(serializers.ModelSerializer):
         if obj.image:
             return obj.image.url
         return None
+
+    def get_author(self, obj):
+        from api.user.serializers import UserSerializer
+
+        return UserSerializer(obj.author, context=self.context).data
 
 
 class IngredientCreateSerializer(serializers.Serializer):

@@ -9,7 +9,7 @@ from drf_extra_fields.fields import Base64ImageField
 
 from user.models import Subscription
 from food.models import Recipe
-from api.food.serializers import RecipeMinifiedSerializer
+from api.common.serializers import RecipeMinifiedSerializer
 
 User = get_user_model()
 
@@ -67,7 +67,6 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
-        """Форматируем ответ после создания подписки"""
         request = self.context.get('request')
         author = instance.author
 
