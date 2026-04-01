@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework import serializers
-
 from drf_extra_fields.fields import Base64ImageField
 
 from user.models import Subscription
@@ -14,8 +13,15 @@ User = get_user_model()
 class SetAvatarSerializer(serializers.Serializer):
     avatar = Base64ImageField(required=True)
 
+    def update(self, instance, validated_data):
+        instance.avatar = validated_data.get('avatar', instance.avatar)
+        instance.save()
+        return instance
+
+    def create(self, validated_data):
+        pass
+
     def to_representation(self, instance):
-        """Форматируем ответ после сохранения аватара"""
         return {'avatar': instance.avatar.url if instance.avatar else None}
 
 

@@ -24,6 +24,7 @@ class RecipeIngredientInline(admin.TabularInline):
 
 class CookingTimeFilter(admin.SimpleListFilter):
     """Фильтр для группировки рецептов по времени приготовления"""
+
     title = 'Время приготовления'
     parameter_name = 'cooking_time_range'
 
@@ -83,9 +84,19 @@ class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline]
 
     fieldsets = (
-        ('Основная информация', {
-            'fields': ('author', 'name', 'text', 'cooking_time', 'image_preview', 'image')
-        }),
+        (
+            'Основная информация',
+            {
+                'fields': (
+                    'author',
+                    'name',
+                    'text',
+                    'cooking_time',
+                    'image_preview',
+                    'image',
+                )
+            },
+        ),
         ('Связи', {'fields': ('tags',), 'classes': ('wide',)}),
         ('Даты', {'fields': ('created_at',), 'classes': ('collapse',)}),
     )
@@ -121,7 +132,8 @@ class RecipeAdmin(admin.ModelAdmin):
     def image_preview(self, obj):
         if obj.image and obj.image.url:
             return mark_safe(
-                f'<img src="{obj.image.url}" width="80" height="60" style="object-fit: cover;" />'
+                '<img src="{}" width="80" height="60" '
+                'style="object-fit: cover;" />'.format(obj.image.url)
             )
         return 'Нет изображения'
 
@@ -146,7 +158,9 @@ class FavoriteAdmin(admin.ModelAdmin):
     )
     list_filter = ('recipe__author',)
 
-    @admin.display(description='Автор рецепта', ordering='recipe__author__username')
+    @admin.display(
+        description='Автор рецепта', ordering='recipe__author__username'
+    )
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
 
@@ -162,7 +176,9 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     )
     list_filter = ('recipe__author',)
 
-    @admin.display(description='Автор рецепта', ordering='recipe__author__username')
+    @admin.display(
+        description='Автор рецепта', ordering='recipe__author__username'
+    )
     def get_recipe_author(self, obj):
         return obj.recipe.author.username
 

@@ -4,7 +4,6 @@ import string
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
-from django.db import models
 
 from core.constants import (
     MAX_LENGTH_INGREDIENT_NAME,
@@ -68,7 +67,9 @@ class Ingredient(models.Model):
         )
 
     def __str__(self):
-        return f'{self.name}, {self.measurement_unit}'[:MAX_LENGTH_ADMIN_NAME]
+        return (f'{self.name}, {self.measurement_unit}')[
+            :MAX_LENGTH_ADMIN_NAME
+        ]
 
 
 class Recipe(models.Model):
@@ -145,7 +146,9 @@ class RecipeIngredient(models.Model):
         )
 
     def __str__(self):
-        return f'{self.recipe.name} — {self.ingredient.name} ({self.amount})'
+        return (
+            f'{self.recipe.name} — {self.ingredient.name} ' f'({self.amount})'
+        )
 
 
 class BaseUserRecipe(models.Model):
@@ -172,7 +175,10 @@ class BaseUserRecipe(models.Model):
         )
 
     def __str__(self):
-        return f'{self.user.username} — {self.recipe.name} ({self._meta.verbose_name})'
+        return (
+            f'{self.user.username} — {self.recipe.name} '
+            f'({self._meta.verbose_name})'
+        )
 
 
 class Favorite(BaseUserRecipe):

@@ -10,6 +10,7 @@ from food.models import (
 )
 from food.models import Favorite, ShoppingCart
 from core.constants import MIN_INGREDIENT_AMOUNT
+from api.common.serializers import UserSerializer
 
 User = get_user_model()
 
@@ -41,7 +42,7 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
-    author = serializers.SerializerMethodField()
+    author = UserSerializer(read_only=True)
     tags = TagSerializer(many=True, read_only=True)
     ingredients = IngredientInRecipeSerializer(
         source='recipe_ingredients', many=True, read_only=True
@@ -69,11 +70,6 @@ class RecipeListSerializer(serializers.ModelSerializer):
         if obj.image:
             return obj.image.url
         return None
-
-    def get_author(self, obj):
-        from api.user.serializers import UserSerializer
-
-        return UserSerializer(obj.author, context=self.context).data
 
 
 class IngredientCreateSerializer(serializers.Serializer):
