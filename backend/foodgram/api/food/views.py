@@ -1,5 +1,5 @@
 from django.db.models import Sum
-from django.http import FileResponse, HttpResponsePermanentRedirect
+from django.http import FileResponse
 from django.urls import reverse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -11,7 +11,6 @@ from api.food.serializers import (
     FavoriteSerializer,
     IngredientSerializer,
     RecipeCreateUpdateSerializer,
-    RecipeListSerializer,
     ShoppingCartSerializer,
     TagSerializer,
 )
@@ -27,7 +26,7 @@ from food.models import (
     ShortLink,
     Tag,
 )
-from api.common.serializers import RecipeMinifiedSerializer
+from api.common.serializers import RecipeListSerializer
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -48,10 +47,8 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Recipe.objects.select_related('author')
-        .prefetch_related('tags', 'recipe_ingredients__ingredient')
-        .order_by('-created_at')
+    queryset = Recipe.objects.select_related('author').prefetch_related(
+        'tags', 'recipe_ingredients__ingredient'
     )
     pagination_class = StandardResultsSetPagination
     permission_classes = (permissions.AllowAny,)
@@ -65,6 +62,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def _create_relation(self, request, recipe, serializer_class):
+        data = {'user': request.user.id, 'recipe': recipe.id}
+        serializer = serializer_class(data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def _delete_relation(self, request, recipe, model, error_message):
+        deleted_count, _ = model.objects.filter(
+            user=request.user, recipe=recipe
+        ).delete()
+
+        if deleted_count == 0:
+            return Response(
+                {'errors': error_message}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def _handle_relation(
         self,
         request,
@@ -74,28 +89,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         error_message,
     ):
         recipe = self.get_object()
-        user = request.user
 
         if request.method == 'POST':
-            data = {'user': user.id, 'recipe': recipe.id}
-            serializer = serializer_class(
-                data=data, context={'request': request}
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(
-                RecipeMinifiedSerializer(recipe).data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        deleted_count, _ = model.objects.filter(
-            user=user, recipe=recipe
-        ).delete()
-        if deleted_count == 0:
-            return Response(
-                {'errors': error_message}, status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            return self._create_relation(request, recipe, serializer_class)
+        else:
+            return self._delete_relation(request, recipe, model, error_message)
 
     @action(
         detail=True,
@@ -171,15 +169,3 @@ class RecipeViewSet(viewsets.ModelViewSet):
             filename='shopping_cart.txt',
         )
         return response
-
-
-def short_link_redirect(request, code):
-    try:
-        short_link = ShortLink.objects.get(code=code)
-        redirect_url = reverse('recipe_detail', args=[short_link.recipe.id])
-    except ShortLink.DoesNotExist:
-        redirect_url = reverse('not_found')
-
-    return HttpResponsePermanentRedirect(
-        request.build_absolute_uri(redirect_url)
-    )

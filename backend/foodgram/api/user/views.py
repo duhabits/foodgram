@@ -8,11 +8,11 @@ from django.db.models import Count
 from api.pagination import StandardResultsSetPagination
 from api.user.serializers import (
     SetAvatarSerializer,
-    SubscriptionSerializer,
+    SubscriptionCreateSerializer,
     SubscriptionListSerializer,
 )
 from user.models import Subscription
-from api.common.serializers import UserSerializer
+from api.user.serializers import UserSerializer
 
 User = get_user_model()
 
@@ -30,9 +30,11 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=(permissions.IsAuthenticated,),
     )
     def subscriptions(self, request):
-        queryset = User.objects.filter(
-            subscribers__user=request.user
-        ).annotate(recipes_count=Count('recipes'))
+        queryset = (
+            User.objects.filter(subscribers__user=request.user)
+            .annotate(recipes_count=Count('recipes'))
+            .order_by('id')
+        )
 
         page = self.paginate_queryset(queryset)
         serializer = SubscriptionListSerializer(
@@ -48,18 +50,17 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=(permissions.IsAuthenticated,),
     )
     def subscribe(self, request, pk=None):
-        if request.method == 'POST':
-            data = {'user': request.user.id, 'author': pk}
-            serializer = SubscriptionSerializer(
-                data=data, context={'request': request}
-            )
-            serializer.is_valid(raise_exception=True)
-            subscription = serializer.save()
+        data = {'user': request.user.id, 'author': pk}
+        serializer = SubscriptionCreateSerializer(
+            data=data, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-            return Response(
-                serializer.to_representation(subscription),
-                status=status.HTTP_201_CREATED,
-            )
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @subscribe.mapping.delete
     def delete_subscribe(self, request, pk=None):
@@ -67,7 +68,7 @@ class UserViewSet(DjoserUserViewSet):
             user=request.user, author=pk
         ).delete()
 
-        if deleted_count == 0:
+        if not deleted_count:
             return Response(
                 {'errors': 'Вы не были подписаны на этого пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -84,25 +85,20 @@ class UserViewSet(DjoserUserViewSet):
     def avatar(self, request):
         user = request.user
 
-        if request.method == 'PUT':
-            serializer = SetAvatarSerializer(
-                instance=user, data=request.data, context={'request': request}
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+        serializer = SetAvatarSerializer(
+            instance=user, data=request.data, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-            response_serializer = SetAvatarSerializer(user)
-            return Response(
-                response_serializer.data, status=status.HTTP_200_OK
-            )
+        response_serializer = SetAvatarSerializer(user)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @avatar.mapping.delete
     def delete_avatar(self, request):
         user = request.user
-
-        if user.avatar:
-            user.avatar.delete(save=False)
-            user.avatar = None
-            user.save()
+        user.avatar.delete(save=False)
+        user.avatar = None
+        user.save()
 
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -130,12 +130,10 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='Изображение')
     def image_preview(self, obj):
-        if obj.image and obj.image.url:
-            return mark_safe(
-                '<img src="{}" width="80" height="60" '
-                'style="object-fit: cover;" />'.format(obj.image.url)
-            )
-        return 'Нет изображения'
+        return mark_safe(
+            '<img src="{}" width="80" height="60" '
+            'style="object-fit: cover;" />'.format(obj.image.url)
+        )
 
 
 @admin.register(RecipeIngredient)

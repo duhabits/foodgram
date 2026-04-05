@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+from django.db.models import UniqueConstraint
 
 from core.constants import (
     MAX_LENGTH_INGREDIENT_NAME,
@@ -91,7 +92,7 @@ class Recipe(models.Model):
         through='RecipeIngredient',
         verbose_name='Ингредиенты',
     )
-    cooking_time = models.IntegerField(
+    cooking_time = models.PositiveSmallIntegerField(
         validators=(MinValueValidator(MIN_COOKING_TIME),),
         verbose_name='Время приготовления (мин)',
     )
@@ -129,7 +130,7 @@ class RecipeIngredient(models.Model):
         related_name='recipe_ingredients',
         verbose_name='Рецепт',
     )
-    amount = models.IntegerField(
+    amount = models.PositiveSmallIntegerField(
         validators=(MinValueValidator(MIN_AMOUNT),),
         verbose_name='Количество',
     )
@@ -137,9 +138,9 @@ class RecipeIngredient(models.Model):
     class Meta:
         verbose_name = 'Ингредиент рецепта'
         verbose_name_plural = 'Ингредиенты рецепта'
-        unique_together = (
-            'recipe',
-            'ingredient',
+        constraints = UniqueConstraint(
+            fields=('recipe', 'ingredient'),
+            name='unique_recipe_ingredient',
         )
 
     def __str__(self):

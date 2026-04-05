@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from djoser.serializers import UserSerializer as DjoserUserSerializer
 
 from food.models import Recipe
-
+from api.user.serializers import UserSerializer
+from api.food.serializers import TagSerializer, IngredientInRecipeSerializer
 
 User = get_user_model()
 
@@ -21,22 +21,34 @@ class RecipeMinifiedSerializer(serializers.ModelSerializer):
         return None
 
 
-class UserSerializer(DjoserUserSerializer):
-    is_subscribed = serializers.SerializerMethodField()
-    avatar = serializers.SerializerMethodField()
+class RecipeListSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
+    ingredients = IngredientInRecipeSerializer(
+        source='recipe_ingredients', many=True, read_only=True
+    )
+    is_favorited = serializers.BooleanField(read_only=True, default=False)
+    is_in_shopping_cart = serializers.BooleanField(
+        read_only=True, default=False
+    )
+    image = serializers.SerializerMethodField()
 
-    class Meta(DjoserUserSerializer.Meta):
-        model = User
-        fields = DjoserUserSerializer.Meta.fields + ('avatar', 'is_subscribed')
-
-    def get_is_subscribed(self, obj):
-        request = self.context.get('request')
-        return (
-            request.user.is_authenticated
-            and obj.subscribers.filter(user=request.user).exists()
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
         )
 
-    def get_avatar(self, obj):
-        if obj.avatar:
-            return obj.avatar.url
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
         return None
