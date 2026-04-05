@@ -4,7 +4,6 @@ from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 
 from user.models import Subscription
-from food.models import Recipe
 from api.common.serializers import (
     RecipeMinifiedSerializer,
     RecipeListSerializer,
