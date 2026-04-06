@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import UniqueConstraint
 
 from core.constants import (
@@ -11,7 +11,9 @@ from core.constants import (
     MAX_LENGTH_TAG_NAME,
     MAX_LENGTH_TAG_SLUG,
     MIN_AMOUNT,
+    MAX_AMOUNT,
     MIN_COOKING_TIME,
+    MAX_COOKING_TIME,
     MAX_LENGTH_ADMIN_NAME,
 )
 from food.services import generate_unique_short_code
@@ -93,7 +95,10 @@ class Recipe(models.Model):
         verbose_name='Ингредиенты',
     )
     cooking_time = models.PositiveSmallIntegerField(
-        validators=(MinValueValidator(MIN_COOKING_TIME),),
+        validators=(
+            MinValueValidator(MIN_COOKING_TIME),
+            MaxValueValidator(MAX_COOKING_TIME),
+        ),
         verbose_name='Время приготовления (мин)',
     )
     text = models.TextField(
@@ -131,7 +136,10 @@ class RecipeIngredient(models.Model):
         verbose_name='Рецепт',
     )
     amount = models.PositiveSmallIntegerField(
-        validators=(MinValueValidator(MIN_AMOUNT),),
+        validators=(
+            MinValueValidator(MIN_AMOUNT),
+            MaxValueValidator(MAX_AMOUNT),
+        ),
         verbose_name='Количество',
     )
 

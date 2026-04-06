@@ -3,9 +3,9 @@ def generate_shopping_cart_content(ingredients):
 
     for ingredient in ingredients:
         lines.append(
-            f"{ingredient['ingredient__name']} - "
-            f"{ingredient['total_amount']} "
-            f"{ingredient['ingredient__measurement_unit']}\n"
+            f'{ingredient['ingredient__name']} - '
+            f'{ingredient['total_amount']} '
+            f'{ingredient['ingredient__measurement_unit']}\n'
         )
 
     lines.append('\n' + '=' * 50)

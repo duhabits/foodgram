@@ -33,7 +33,7 @@ class UserViewSet(DjoserUserViewSet):
         queryset = (
             User.objects.filter(subscribers__user=request.user)
             .annotate(recipes_count=Count('recipes'))
-            .order_by('id')
+            .order_by('username')
         )
 
         page = self.paginate_queryset(queryset)
@@ -91,14 +91,10 @@ class UserViewSet(DjoserUserViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        response_serializer = SetAvatarSerializer(user)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @avatar.mapping.delete
     def delete_avatar(self, request):
         user = request.user
-        user.avatar.delete(save=False)
-        user.avatar = None
-        user.save()
-
+        user.avatar.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

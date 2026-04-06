@@ -13,6 +13,7 @@ from api.food.serializers import (
     RecipeCreateUpdateSerializer,
     ShoppingCartSerializer,
     TagSerializer,
+    RecipeListSerializer,
 )
 from api.food.utils import generate_shopping_cart_content
 from api.pagination import StandardResultsSetPagination
@@ -26,7 +27,6 @@ from food.models import (
     ShortLink,
     Tag,
 )
-from api.common.serializers import RecipeListSerializer
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -55,72 +55,65 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
-        if self.request.method in ('POST', 'PUT', 'PATCH'):
-            return RecipeCreateUpdateSerializer
-        return RecipeListSerializer
+        if self.request.method in permissions.SAFE_METHODS:
+            return RecipeListSerializer
+        return RecipeCreateUpdateSerializer
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def _create_relation(self, request, recipe, serializer_class):
-        data = {'user': request.user.id, 'recipe': recipe.id}
-        serializer = serializer_class(data=data, context={'request': request})
+    def _create_relation(self, recipe, serializer_class):
+        """Создание связи (избранное/корзина)."""
+        data = {'user': self.request.user.id, 'recipe': recipe.id}
+        serializer = serializer_class(
+            data=data, context={'request': self.request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def _delete_relation(self, request, recipe, model, error_message):
+    def _delete_relation(self, recipe, model, error_message):
+        """Удаление связи (избранное/корзина)."""
         deleted_count, _ = model.objects.filter(
-            user=request.user, recipe=recipe
+            user=self.request.user, recipe=recipe
         ).delete()
 
-        if deleted_count == 0:
+        if not deleted_count:
             return Response(
                 {'errors': error_message}, status=status.HTTP_400_BAD_REQUEST
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _handle_relation(
-        self,
-        request,
-        pk,
-        model,
-        serializer_class,
-        error_message,
-    ):
-        recipe = self.get_object()
-
-        if request.method == 'POST':
-            return self._create_relation(request, recipe, serializer_class)
-        else:
-            return self._delete_relation(request, recipe, model, error_message)
-
     @action(
         detail=True,
-        methods=('post', 'delete'),
+        methods=('post',),
         permission_classes=(permissions.IsAuthenticated,),
     )
     def favorite(self, request, pk=None):
-        return self._handle_relation(
-            request,
-            pk,
-            Favorite,
-            FavoriteSerializer,
-            'Рецепта не было в избранном',
+        recipe = self.get_object()
+        return self._create_relation(recipe, FavoriteSerializer)
+
+    @favorite.mapping.delete
+    def delete_favorite(self, request, pk=None):
+        recipe = self.get_object()
+        return self._delete_relation(
+            recipe, Favorite, 'Рецепта не было в избранном'
         )
 
     @action(
         detail=True,
-        methods=('post', 'delete'),
+        methods=('post',),
         permission_classes=(permissions.IsAuthenticated,),
     )
     def shopping_cart(self, request, pk=None):
-        return self._handle_relation(
-            request,
-            pk,
-            ShoppingCart,
-            ShoppingCartSerializer,
-            'Рецепта не было в списке покупок',
+        recipe = self.get_object()
+        return self._create_relation(recipe, ShoppingCartSerializer)
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        recipe = self.get_object()
+        return self._delete_relation(
+            recipe, ShoppingCart, 'Рецепта не было в списке покупок'
         )
 
     @action(detail=True, methods=('get',), url_path='get_link')

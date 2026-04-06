@@ -10,7 +10,8 @@ from food.models import (
 )
 from food.models import Favorite, ShoppingCart
 from core.constants import MIN_AMOUNT
-from api.common.serializers import RecipeListSerializer
+from api.common.serializers import RecipeMinifiedSerializer
+from api.user.serializers import UserSerializer
 
 User = get_user_model()
 
@@ -121,10 +122,8 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         tags_data = validated_data.pop('tags', None)
         image = validated_data.pop('image', None)
 
-        instance = super().update(instance, validated_data)  # строка 172
-
         if image:
-            self._validate_and_set_image(instance, image)
+            self.validate_image(instance, image)
 
         if tags_data:
             instance.tags.set(tags_data)
@@ -133,28 +132,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             instance.recipe_ingredients.all().delete()
             self.create_recipe_ingredients(instance, ingredients_data)
 
-        return instance
+        return super().update(instance, validated_data)
 
-    def _validate_and_set_image(self, instance, image):
-        if image.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                {'image': 'Размер изображения не должен превышать 5MB'}
-            )
-
-        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
-        if (
-            hasattr(image, 'content_type')
-            and image.content_type not in allowed_types
-        ):
-            raise serializers.ValidationError(
-                {'image': 'Поддерживаются только JPEG, PNG, WEBP форматы'}
-            )
-
-        if instance.image:
-            instance.image.delete(save=False)
-
-        instance.image = image
-        instance.save(update_fields=['image'])
+    def validate_image(self, value):
+        if not value:
+            raise serializers.ValidationError('Изображение обязательно')
+        return value
 
 
 class BaseFavoriteCartSerializer(serializers.ModelSerializer):
@@ -176,10 +159,9 @@ class BaseFavoriteCartSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
-        return {
-            'user': instance.user.id,
-            'recipe': instance.recipe.id,
-        }
+        return RecipeMinifiedSerializer(
+            instance.recipe, context=self.context
+        ).data
 
 
 class FavoriteSerializer(BaseFavoriteCartSerializer):
@@ -188,9 +170,6 @@ class FavoriteSerializer(BaseFavoriteCartSerializer):
         model = Favorite
         fields = ('user', 'recipe')
 
-    def to_representation(self, instance):
-        return RecipeListSerializer(instance.recipe, context=self.context).data
-
 
 class ShoppingCartSerializer(BaseFavoriteCartSerializer):
 
@@ -198,5 +177,49 @@ class ShoppingCartSerializer(BaseFavoriteCartSerializer):
         model = ShoppingCart
         fields = ('user', 'recipe')
 
-    def to_representation(self, instance):
-        return RecipeListSerializer(instance.recipe, context=self.context).data
+
+class RecipeListSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
+    ingredients = IngredientInRecipeSerializer(
+        source='recipe_ingredients', many=True, read_only=True
+    )
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
+        )
+
+    def get_is_favorited(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favorite.objects.filter(
+                user=request.user, recipe=obj
+            ).exists()
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return ShoppingCart.objects.filter(
+                user=request.user, recipe=obj
+            ).exists()
+        return False
+
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None

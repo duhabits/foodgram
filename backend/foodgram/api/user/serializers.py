@@ -4,10 +4,7 @@ from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 
 from user.models import Subscription
-from api.common.serializers import (
-    RecipeMinifiedSerializer,
-    RecipeListSerializer,
-)
+from api.common.serializers import RecipeMinifiedSerializer
 
 User = get_user_model()
 
@@ -71,20 +68,16 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
-        return RecipeListSerializer(instance, context=self.context).data
+        return UserSerializer(instance.author, context=self.context).data
 
 
 class SubscriptionListSerializer(UserSerializer):
     recipes_count = serializers.IntegerField(read_only=True, default=0)
     recipes = serializers.SerializerMethodField()
-    is_subscribed = serializers.SerializerMethodField()
-    avatar = serializers.SerializerMethodField()
 
     class Meta(UserSerializer.Meta):
 
         fields = UserSerializer.Meta.fields + (
-            'avatar',
-            'is_subscribed',
             'recipes_count',
             'recipes',
         )
