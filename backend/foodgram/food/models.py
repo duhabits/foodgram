@@ -160,18 +160,6 @@ class RecipeIngredient(models.Model):
 
 
 class BaseUserRecipe(models.Model):
-    """Абстрактная модель для связи пользователя с рецептом"""
-
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        verbose_name='Пользователь',
-    )
-    recipe = models.ForeignKey(
-        Recipe,
-        on_delete=models.CASCADE,
-        verbose_name='Рецепт',
-    )
 
     class Meta:
         abstract = True
@@ -190,7 +178,18 @@ class BaseUserRecipe(models.Model):
 
 
 class Favorite(BaseUserRecipe):
-    """Модель избранного"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        verbose_name='Пользователь',
+    )
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='favorited_by',
+        verbose_name='Рецепт',
+    )
 
     class Meta(BaseUserRecipe.Meta):
         verbose_name = 'Избранное'
@@ -198,7 +197,19 @@ class Favorite(BaseUserRecipe):
 
 
 class ShoppingCart(BaseUserRecipe):
-    """Модель корзины покупок"""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='shopping_carts',
+        verbose_name='Пользователь',
+    )
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='in_shopping_carts',
+        verbose_name='Рецепт',
+    )
 
     class Meta(BaseUserRecipe.Meta):
         verbose_name = 'Корзина'
