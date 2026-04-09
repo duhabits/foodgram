@@ -21,7 +21,7 @@ class UserSerializer(DjoserUserSerializer):
         request = self.context.get('request')
         return (
             request.user.is_authenticated
-            and obj.subscribers.filter(user=request.user).exists()
+            and obj.user_subscriptions.filter(user=request.user).exists()
         )
 
     def get_avatar(self, obj):
