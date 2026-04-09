@@ -31,7 +31,7 @@ class UserViewSet(DjoserUserViewSet):
     )
     def subscriptions(self, request):
         queryset = (
-            User.objects.filter(subscribers__user=request.user)
+            User.objects.filter(authors__user=request.user)
             .annotate(recipes_count=Count('recipes'))
             .order_by('username')
         )
@@ -49,8 +49,8 @@ class UserViewSet(DjoserUserViewSet):
         url_path='subscribe',
         permission_classes=(permissions.IsAuthenticated,),
     )
-    def subscribe(self, request, pk=None):
-        data = {'user': request.user.id, 'author': pk}
+    def subscribe(self, request, id=None):
+        data = {'user': request.user.id, 'author': id}
         serializer = SubscriptionCreateSerializer(
             data=data, context={'request': request}
         )
@@ -63,9 +63,9 @@ class UserViewSet(DjoserUserViewSet):
         )
 
     @subscribe.mapping.delete
-    def delete_subscribe(self, request, pk=None):
+    def delete_subscribe(self, request, id=None):
         deleted_count, _ = Subscription.objects.filter(
-            user=request.user, author=pk
+            user=request.user, author=id
         ).delete()
 
         if not deleted_count:

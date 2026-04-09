@@ -1,5 +1,5 @@
 from django.db.models import Sum
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponsePermanentRedirect
 from django.urls import reverse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -43,7 +43,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = (permissions.AllowAny,)
 
     filter_backends = (SearchFilter,)
-    search_fields = ('^name',)
+    search_fields = ('name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -141,7 +141,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request):
         ingredients = (
             RecipeIngredient.objects.filter(
-                recipe__shopping_cart__user=request.user
+                recipe__shoppingcart__user=request.user
             )
             .values('ingredient__name', 'ingredient__measurement_unit')
             .annotate(total_amount=Sum('amount'))
@@ -162,3 +162,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
             filename='shopping_cart.txt',
         )
         return response
+
+
+def short_link_redirect(request, code):
+    try:
+        short_link = ShortLink.objects.get(code=code)
+        redirect_url = reverse('recipe_detail', args=[short_link.recipe.id])
+    except ShortLink.DoesNotExist:
+        redirect_url = reverse('not_found')
+
+    return HttpResponsePermanentRedirect(
+        request.build_absolute_uri(redirect_url)
+    )

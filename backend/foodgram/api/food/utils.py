@@ -3,14 +3,13 @@ def generate_shopping_cart_content(ingredients):
 
     for ingredient in ingredients:
         lines.append(
-            '{} - {} {}\n'.format(
-                ingredient['ingredient__name'],
-                ingredient['total_amount'],
-                ingredient['ingredient__measurement_unit'],
-            )
+            f"{ingredient['ingredient__name']} - "
+            f"{ingredient['total_amount']} "
+            f"{ingredient['ingredient__measurement_unit']}\n"
         )
 
     lines.append('\n' + '=' * 50)
     lines.append(f'\nВсего позиций: {len(ingredients)}')
 
-    return '\n'.join(lines).encode('utf-8')
+    content = ''.join(lines)
+    return content
