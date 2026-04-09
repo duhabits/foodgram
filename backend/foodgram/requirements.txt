@@ -7,3 +7,4 @@ psycopg2-binary==2.9.9
 gunicorn==21.2.0
 reportlab==4.0.9
 drf-extra-fields==3.4.0
+drf-yasg==1.21.7

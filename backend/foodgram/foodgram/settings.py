@@ -24,6 +24,7 @@ INSTALLED_APPS = (
     'api.apps.ApiConfig',
     'food.apps.FoodConfig',
     'user.apps.UserConfig',
+    'drf_yasg',
 )
 
 MIDDLEWARE = (
@@ -57,6 +58,11 @@ TEMPLATES = (
 WSGI_APPLICATION = 'foodgram.wsgi.application'
 
 USE_SQLITE = os.getenv('USE_SQLITE', 'True').lower() in ('True')
+
+CSRF_TRUSTED_ORIGINS = ALLOWED_HOSTS
+
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
 
 if not DEBUG:
     CSRF_COOKIE_SECURE = True
