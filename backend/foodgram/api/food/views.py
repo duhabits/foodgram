@@ -45,9 +45,6 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
-# ... (твои импорты остаются без изменений)
-
-
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.select_related('author').prefetch_related(
         'tags', 'recipe_ingredients__ingredient'
@@ -55,7 +52,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     permission_classes = (permissions.AllowAny,)
     filterset_class = RecipeFilter
-    # Добавляем фильтрацию (обязательно для работы избранного и корзины в списке)
     filter_backends = (DjangoFilterBackend,)
 
     def get_serializer_class(self):
