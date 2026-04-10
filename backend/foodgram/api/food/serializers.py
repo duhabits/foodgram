@@ -139,6 +139,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Изображение обязательно')
         return value
 
+    def to_representation(self, instance):
+        return RecipeListSerializer(instance, context=self.context).data
+
 
 class BaseFavoriteCartSerializer(serializers.ModelSerializer):
 
@@ -205,19 +208,21 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
     def get_is_favorited(self, obj):
         request = self.context.get('request')
-        return (
-            request
-            and request.user.is_authenticated
-            and request.user.favorites.filter(recipe=obj).exists()
-        )
+        if not request or request.user.is_anonymous:
+            return False
+        from food.models import Favorite
+
+        return Favorite.objects.filter(user=request.user, recipe=obj).exists()
 
     def get_is_in_shopping_cart(self, obj):
         request = self.context.get('request')
-        return (
-            request
-            and request.user.is_authenticated
-            and request.user.shopping_carts.filter(recipe=obj).exists()
-        )
+        if not request or request.user.is_anonymous:
+            return False
+        from food.models import ShoppingCart
+
+        return ShoppingCart.objects.filter(
+            user=request.user, recipe=obj
+        ).exists()
 
     def get_image(self, obj):
         if obj.image:

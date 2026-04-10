@@ -2,6 +2,9 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from drf_extra_fields.fields import Base64ImageField
 from djoser.serializers import UserSerializer as DjoserUserSerializer
+from djoser.serializers import (
+    UserCreateSerializer as DjoserUserCreateSerializer,
+)
 
 from user.models import Subscription
 from api.common.serializers import RecipeMinifiedSerializer
@@ -19,10 +22,9 @@ class UserSerializer(DjoserUserSerializer):
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
-        return (
-            request.user.is_authenticated
-            and obj.user_subscriptions.filter(user=request.user).exists()
-        )
+        if request is None or request.user.is_anonymous:
+            return False
+        return obj.subscriptions_to_author.filter(user=request.user).exists()
 
     def get_avatar(self, obj):
         if obj.avatar:
@@ -98,3 +100,16 @@ class SubscriptionListSerializer(UserSerializer):
         return RecipeMinifiedSerializer(
             recipes, many=True, context={'request': request}
         ).data
+
+
+class UserCreateSerializer(DjoserUserCreateSerializer):
+    class Meta(DjoserUserCreateSerializer.Meta):
+        model = User
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'password',
+        )

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from djoser.views import UserViewSet as DjoserUserViewSet
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -31,7 +32,7 @@ class UserViewSet(DjoserUserViewSet):
     )
     def subscriptions(self, request):
         queryset = (
-            User.objects.filter(authors__user=request.user)
+            User.objects.filter(subscriptions_to_author__user=request.user)
             .annotate(recipes_count=Count('recipes'))
             .order_by('username')
         )
@@ -49,8 +50,11 @@ class UserViewSet(DjoserUserViewSet):
         url_path='subscribe',
         permission_classes=(permissions.IsAuthenticated,),
     )
-    def subscribe(self, request, id=None):
-        data = {'user': request.user.id, 'author': id}
+    def subscribe(self, request, id=None, pk=None):
+        target_id = id or pk
+        author = get_object_or_404(User, pk=target_id)
+
+        data = {'user': request.user.id, 'author': author.id}
         serializer = SubscriptionCreateSerializer(
             data=data, context={'request': request}
         )
@@ -63,9 +67,10 @@ class UserViewSet(DjoserUserViewSet):
         )
 
     @subscribe.mapping.delete
-    def delete_subscribe(self, request, id=None):
+    def delete_subscribe(self, request, id=None, pk=None):
+        target_id = id or pk
         deleted_count, _ = Subscription.objects.filter(
-            user=request.user, author=id
+            user=request.user, author=target_id
         ).delete()
 
         if not deleted_count:

@@ -3,10 +3,10 @@ from django.http import FileResponse, HttpResponsePermanentRedirect
 from django.urls import reverse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
-from api.food.filters import RecipeFilter
+from api.food.filters import RecipeFilter, IngredientFilter
 from api.food.serializers import (
     FavoriteSerializer,
     IngredientSerializer,
@@ -39,11 +39,13 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    pagination_class = None
     permission_classes = (permissions.AllowAny,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
+    pagination_class = None
 
-    filter_backends = (SearchFilter,)
-    search_fields = ('name',)
+
+# ... (твои импорты остаются без изменений)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -53,6 +55,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     permission_classes = (permissions.AllowAny,)
     filterset_class = RecipeFilter
+    # Добавляем фильтрацию (обязательно для работы избранного и корзины в списке)
+    filter_backends = (DjangoFilterBackend,)
 
     def get_serializer_class(self):
         if self.request.method in permissions.SAFE_METHODS:
@@ -63,7 +67,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     def _create_relation(self, recipe, serializer_class):
-        """Создание связи (избранное/корзина)."""
         data = {'user': self.request.user.id, 'recipe': recipe.id}
         serializer = serializer_class(
             data=data, context={'request': self.request}
@@ -73,11 +76,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def _delete_relation(self, recipe, model, error_message):
-        """Удаление связи (избранное/корзина)."""
         deleted_count, _ = model.objects.filter(
             user=self.request.user, recipe=recipe
         ).delete()
-
         if not deleted_count:
             return Response(
                 {'errors': error_message}, status=status.HTTP_400_BAD_REQUEST
@@ -116,7 +117,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe, ShoppingCart, 'Рецепта не было в списке покупок'
         )
 
-    @action(detail=True, methods=('get',), url_path='get_link')
+    @action(detail=True, methods=('get',), url_path='get-link')
     def get_link(self, request, pk=None):
         recipe = self.get_object()
         short_link, _ = ShortLink.objects.get_or_create(
@@ -128,38 +129,29 @@ class RecipeViewSet(viewsets.ModelViewSet):
             },
         )
         short_url = request.build_absolute_uri(
-            reverse('short_link_redirect', args=[short_link.code])
+            reverse('short-link-redirect', args=[short_link.code])
         )
         return Response({'short-link': short_url})
 
     @action(
         detail=False,
-        methods=('get',),
-        url_path='download_shopping_cart',
-        permission_classes=(permissions.IsAuthenticated,),
+        methods=['get'],
+        permission_classes=[permissions.IsAuthenticated],
     )
     def download_shopping_cart(self, request):
         ingredients = (
             RecipeIngredient.objects.filter(
-                recipe__shoppingcart__user=request.user
+                recipe__in_shopping_carts__user=request.user
             )
             .values('ingredient__name', 'ingredient__measurement_unit')
             .annotate(total_amount=Sum('amount'))
             .order_by('ingredient__name')
         )
 
-        if not ingredients.exists():
-            return Response(
-                {'error': 'Корзина покупок пуста'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         content = generate_shopping_cart_content(ingredients)
-        response = FileResponse(
-            content,
-            content_type='text/plain; charset=utf-8',
-            as_attachment=True,
-            filename='shopping_cart.txt',
+        response = FileResponse(content, content_type='text/plain')
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_cart.txt"'
         )
         return response
 
@@ -167,10 +159,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 def short_link_redirect(request, code):
     try:
         short_link = ShortLink.objects.get(code=code)
-        redirect_url = reverse('recipe_detail', args=[short_link.recipe.id])
+        return HttpResponsePermanentRedirect(
+            f'/recipes/{short_link.recipe.id}/'
+        )
     except ShortLink.DoesNotExist:
-        redirect_url = reverse('not_found')
-
-    return HttpResponsePermanentRedirect(
-        request.build_absolute_uri(redirect_url)
-    )
+        return HttpResponsePermanentRedirect('/')

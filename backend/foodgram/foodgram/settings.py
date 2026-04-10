@@ -59,7 +59,14 @@ WSGI_APPLICATION = 'foodgram.wsgi.application'
 
 USE_SQLITE = os.getenv('USE_SQLITE', 'True').lower() in ('True')
 
-CSRF_TRUSTED_ORIGINS = ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'http://localhost:8880',
+    'http://backend',
+    'http://nginx',
+    'http://158.160.31.143',
+]
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
@@ -147,6 +154,7 @@ DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': False,
     'SERIALIZERS': {
+        'user_create': 'api.user.serializers.UserCreateSerializer',
         'user': 'api.user.serializers.UserSerializer',
         'current_user': 'api.user.serializers.UserSerializer',
     },
