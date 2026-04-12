@@ -8,25 +8,11 @@ from rest_framework import permissions
 
 from api.food.views import short_link_redirect
 
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Foodgram API",
-        default_version='v1',
-        description="Документация API сервиса Foodgram",
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
-)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('s/<str:code>/', short_link_redirect, name='short-link-redirect'),
-    re_path(
-        r'^api/docs/$',
-        schema_view.with_ui('swagger', cache_timeout=0),
-        name='schema-swagger-ui',
-    ),
 ]
 
 if settings.DEBUG:
