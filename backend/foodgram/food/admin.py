@@ -106,12 +106,12 @@ class RecipeAdmin(admin.ModelAdmin):
         return (
             queryset.select_related('author')
             .prefetch_related('tags', 'recipe_ingredients__ingredient')
-            .annotate(favorites_count=Count('favorites'))
+            .annotate(favorites_count=Count('favorited_by'))
         )
 
     @admin.display(description='В избранном', ordering='favorites_count')
     def favorites_count(self, obj):
-        return getattr(obj, 'favorites_count', obj.favorites.count())
+        return getattr(obj, 'favorites_count', obj.favorited_by.count())
 
     @admin.display(description='Теги')
     def get_tags_display(self, obj):

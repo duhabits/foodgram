@@ -26,7 +26,7 @@ class UserAdmin(UserAdmin):
         queryset = super().get_queryset(request)
         return queryset.annotate(
             recipes_count=Count('recipes', distinct=True),
-            subscribers_count=Count('subscribers', distinct=True),
+            subscribers_count=Count('subscriptions_to_author', distinct=True),
         )
 
     def recipes_count(self, obj):

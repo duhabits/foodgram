@@ -59,14 +59,15 @@ WSGI_APPLICATION = 'foodgram.wsgi.application'
 
 USE_SQLITE = os.getenv('USE_SQLITE', 'True').lower() in ('True')
 
-CSRF_TRUSTED_ORIGINS = [
+CSRF_TRUSTED_ORIGINS = (
     'http://localhost',
     'http://127.0.0.1',
     'http://localhost:8880',
     'http://backend',
     'http://nginx',
     'http://158.160.31.143',
-]
+    'http://foodgram.ddnsking.com',
+)
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
